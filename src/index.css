@@ -1,0 +1,43 @@
+:root {
+  --ink: #24313a;
+  --muted: #66747d;
+  --canvas: #f4f7f6;
+  --surface: #ffffff;
+  --line: #dbe4e1;
+  --accent: #176b68;
+  --accent-dark: #0e504e;
+  --accent-soft: #e5f1ef;
+  --danger: #b34b4b;
+  --shadow: 0 12px 30px rgba(33, 58, 56, 0.07);
+  font: 16px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+  color: var(--ink);
+  background: var(--canvas);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  margin: 0;
+}
+
+#root {
+  min-height: 100svh;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
