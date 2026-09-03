@@ -25,7 +25,7 @@ export function AppLayout({ activeItem, children, onNavigate }: AppLayoutProps) 
           <span className="brand-mark">TC</span>
           <div>
             <strong>Terapia Cercana</strong>
-            <span>Gestion clinica</span>
+            <span>Gesti&oacute;n cl&iacute;nica</span>
           </div>
         </div>
 

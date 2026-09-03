@@ -42,6 +42,25 @@ input:hover, select:hover, textarea:hover { border-color: #8ba8a3; }
 input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(23, 107, 104, .1); outline: none; }
 textarea { resize: vertical; }
 .form-actions { justify-content: flex-end; padding-top: 4px; }
+.appointment-plan { display: grid; gap: 18px; padding: 20px; background: var(--canvas); border: 1px solid var(--line); border-radius: 8px; }
+.appointment-plan-header h3 { margin: 0; }
+.appointment-plan-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.inline-price-inputs { display: grid; grid-template-columns: 1.4fr .75fr; gap: 10px; }
+.appointment-preview { display: grid; gap: 14px; }
+.appointment-preview-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.appointment-preview-header h4 { margin: 0; }
+.appointment-preview-header span { color: var(--muted); font-weight: 700; }
+.session-counter-panel { display: inline-flex; align-items: center; gap: 12px; width: fit-content; padding: 10px 16px; color: var(--accent-dark); background: var(--accent-soft); border: 1px solid rgba(23, 107, 104, .18); border-radius: 999px; font-weight: 700; }
+.session-counter-panel strong { display: inline-grid; width: 28px; height: 28px; place-items: center; color: #fff; background: var(--accent); border-radius: 50%; }
+.calendar-wrap { min-width: 0; }
+.fc { --fc-border-color: var(--line); --fc-button-bg-color: var(--accent); --fc-button-border-color: var(--accent); --fc-button-hover-bg-color: var(--accent-dark); --fc-button-hover-border-color: var(--accent-dark); --fc-button-active-bg-color: var(--accent-dark); --fc-button-active-border-color: var(--accent-dark); --fc-today-bg-color: var(--accent-soft); --fc-event-bg-color: var(--accent); --fc-event-border-color: var(--accent); color: var(--ink); }
+.fc .fc-toolbar { gap: 12px; flex-wrap: wrap; }
+.fc .fc-toolbar-title { font-size: 1.1rem; }
+.fc .fc-button { border-radius: 5px; box-shadow: none; font-size: .82rem; }
+.fc .fc-col-header-cell-cushion, .fc .fc-daygrid-day-number { color: var(--muted); text-decoration: none; }
+.fc .fc-timegrid-slot-label { color: var(--muted); font-size: .75rem; }
+.fc .fc-event { padding: 2px 4px; cursor: pointer; font-weight: 700; }
+.fc .fc-event[data-color="occupied"] { opacity: 0.95; }
 .status-message { padding: 20px; color: var(--muted); text-align: center; background: var(--canvas); border-radius: 6px; }
 .status-error { color: var(--danger); background: #fff1f1; }
 .table-wrap { overflow-x: auto; }
