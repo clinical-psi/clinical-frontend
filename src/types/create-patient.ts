@@ -1,5 +1,5 @@
 export type CreatePatient = {
-  patientUuid: string
+  patientId: string
   firstName: string
   lastName: string
   email?: string

@@ -1,6 +1,6 @@
 export type GetPatient = {
     id: string;
-    patientUuid: string
+    patientId: string
     firstName: string
     lastName: string
     email?: string

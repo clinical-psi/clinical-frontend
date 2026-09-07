@@ -1,27 +1,97 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type FormEvent, type KeyboardEvent } from 'react'
 import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import type { DateSelectArg, DatesSetArg, EventClickArg } from '@fullcalendar/core'
+import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined'
 import { patientService } from '../services/patientService'
 import { specialistService } from '../services/specialistService'
+import { locationService } from '../services/locationService'
 import type { CreatePatient } from '../types/create-patient'
 import type { Specialist } from '../data/http/specialistsApi'
+import type { Location } from '../data/http/locationsApi'
 
 type SessionEvent = {
   id: string
   title: string
   start: string
   end: string
+  notes?: string
+  tags?: string[]
   color?: string
 }
 
 type AppointmentPlan = {
   price: string
   currency: string
+  sessionType: string
+  selectedLocationId: string
   selectedSessions: SessionEvent[]
   selectedSpecialistId: string
+}
+
+type TagInputProps = {
+  tags: string[]
+  onChange: (tags: string[]) => void
+}
+
+function TagInput({ tags, onChange }: TagInputProps) {
+  const [draft, setDraft] = useState('')
+
+  function addTag(value: string) {
+    const tag = value.trim()
+    if (!tag || tags.some((currentTag) => currentTag.toLowerCase() === tag.toLowerCase())) return
+    onChange([...tags, tag])
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === ',' || event.key === 'Enter') {
+      event.preventDefault()
+      addTag(draft)
+      setDraft('')
+      return
+    }
+
+    if (event.key === 'Backspace' && !draft && tags.length > 0) {
+      onChange(tags.slice(0, -1))
+    }
+  }
+
+  function handleChange(value: string) {
+    if (value.includes(',')) {
+      const parts = value.split(',')
+      parts.slice(0, -1).forEach(addTag)
+      setDraft(parts.at(-1) ?? '')
+      return
+    }
+
+    setDraft(value)
+  }
+
+  return (
+    <div className="tag-input">
+      <div className="tag-list">
+        {tags.map((tag) => (
+          <span className="tag-chip" key={tag}>
+            {tag}
+            <button type="button" aria-label={`Eliminar etiqueta ${tag}`} onClick={() => onChange(tags.filter((currentTag) => currentTag !== tag))}>×</button>
+          </span>
+        ))}
+        <input
+          value={draft}
+          onChange={(event) => handleChange(event.target.value)}
+          onKeyDown={handleKeyDown}
+          onBlur={() => {
+            addTag(draft)
+            setDraft('')
+          }}
+          placeholder={tags.length ? 'Añadir etiqueta' : 'Ej. evaluación'}
+          aria-label="Nueva etiqueta"
+        />
+      </div>
+    </div>
+  )
 }
 
 function formatLocalDateTime(date: Date) {
@@ -42,14 +112,20 @@ function buildSpecialistAvailabilityWindow(start: Date, end: Date) {
 export function PatientPage() {
   const [patients, setPatients] = useState<CreatePatient[]>([])
   const [specialists, setSpecialists] = useState<Specialist[]>([])
+  const [locations, setLocations] = useState<Location[]>([])
   const [specialistAvailability, setSpecialistAvailability] = useState<SessionEvent[]>([])
   const [calendarDateRange, setCalendarDateRange] = useState<{ start: Date; end: Date } | null>(null)
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null)
+  const [sessionNotes, setSessionNotes] = useState('')
+  const [sessionTags, setSessionTags] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [error, setError] = useState('')
   const [appointmentPlan, setAppointmentPlan] = useState<AppointmentPlan>({
     price: '110',
     currency: 'PEN',
+    sessionType: '',
+    selectedLocationId: '',
     selectedSessions: [],
     selectedSpecialistId: '',
   })
@@ -74,6 +150,20 @@ export function PatientPage() {
   }, [showForm])
 
   useEffect(() => {
+    if (appointmentPlan.sessionType !== 'PRESENCIAL') {
+      setLocations([])
+      return
+    }
+
+    locationService
+      .getAll()
+      .then(setLocations)
+      .catch((requestError: Error) => {
+        setError(requestError.message)
+      })
+  }, [appointmentPlan.sessionType])
+
+  useEffect(() => {
     if (!appointmentPlan.selectedSpecialistId || !calendarDateRange) {
       setSpecialistAvailability([])
       return
@@ -89,6 +179,8 @@ export function PatientPage() {
           title: appointment.patient ? `${appointment.patient.firstName ?? ''} ${appointment.patient.lastName ?? ''}`.trim() || 'Cita ocupada' : 'Cita ocupada',
           start: appointment.appointmentStartDate,
           end: appointment.appointmentEndDate,
+          notes: appointment.notes ?? '',
+          tags: [],
           color: '#d97706',
         }))
 
@@ -103,6 +195,7 @@ export function PatientPage() {
   const fullCalendarEvents = [...specialistAvailability, ...appointmentPlan.selectedSessions]
 
   function handleSessionSelection(selection: DateSelectArg) {
+    const sessionId = `session-${Date.now()}-${Math.random().toString(16).slice(2)}`
     const nextSessionNumber = appointmentPlan.selectedSessions.length + 1
 
     setAppointmentPlan((current) => ({
@@ -110,31 +203,92 @@ export function PatientPage() {
       selectedSessions: [
         ...current.selectedSessions,
         {
-          id: `session-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          id: sessionId,
           title: `Sesión ${nextSessionNumber}`,
           start: selection.startStr,
           end: selection.endStr,
+          notes: '',
+          tags: [],
           color: '#2563eb',
         },
       ],
     }))
   }
 
-  function handleSessionDelete(clickInfo: EventClickArg) {
-    if (clickInfo.event.id.startsWith('existing-')) {
-      return
-    }
+  function handleSessionEdit(clickInfo: EventClickArg) {
+    const session = [
+      ...appointmentPlan.selectedSessions,
+      ...specialistAvailability,
+    ].find((item) => item.id === clickInfo.event.id)
+    if (!session) return
 
-    const confirmed = window.confirm(`¿Deseas eliminar ${clickInfo.event.title}?`)
+    setEditingSessionId(session.id)
+    setSessionNotes(session.notes ?? '')
+    setSessionTags(session.tags ?? [])
+  }
+
+  function handleSessionModalClose() {
+    setEditingSessionId(null)
+    setSessionNotes('')
+    setSessionTags([])
+  }
+
+  async function handleSessionDelete() {
+    if (!editingSessionId) return
+
+    const confirmed = window.confirm('¿Deseas eliminar esta sesión?')
     if (!confirmed) return
 
-    setAppointmentPlan((current) => {
-      const remainingSessions = current.selectedSessions.filter((session) => session.id !== clickInfo.event.id)
-      return {
-        ...current,
-        selectedSessions: remainingSessions,
+    if (editingSessionId.startsWith('existing-')) {
+      if (!appointmentPlan.selectedSpecialistId) return
+
+      const appointmentId = editingSessionId.replace('existing-', '')
+
+      try {
+        await specialistService.deleteAppointmentBySpecialistId(
+          appointmentPlan.selectedSpecialistId,
+          appointmentId,
+        )
+      } catch (requestError) {
+        setError(requestError instanceof Error ? requestError.message : 'No se pudo eliminar la cita')
+        return
       }
-    })
+    }
+
+    setAppointmentPlan((current) => ({
+      ...current,
+      selectedSessions: current.selectedSessions.filter((session) => session.id !== editingSessionId),
+    }))
+    setSpecialistAvailability((current) => current.filter((session) => session.id !== editingSessionId))
+    handleSessionModalClose()
+  }
+
+  function handleSessionModalSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!editingSessionId) return
+
+    const tags = sessionTags
+
+    setAppointmentPlan((current) => ({
+      ...current,
+      selectedSessions: current.selectedSessions.map((session) => ({
+        ...session,
+        ...(session.id === editingSessionId ? {
+          title: `${session.title.split(' · ')[0]}${tags.length ? ` · ${tags.join(', ')}` : ''}`,
+          notes: sessionNotes.trim(),
+          tags,
+        } : {}),
+      })),
+    }))
+    setSpecialistAvailability((current) => current.map((session) => ({
+      ...session,
+      ...(session.id === editingSessionId ? {
+        title: `${session.title.split(' · ')[0]}${tags.length ? ` · ${tags.join(', ')}` : ''}`,
+        notes: sessionNotes.trim(),
+        tags,
+      } : {}),
+    })))
+    handleSessionModalClose()
   }
 
   function handleCalendarDatesSet(dateInfo: DatesSetArg) {
@@ -203,6 +357,44 @@ export function PatientPage() {
                   </div>
                 </label>
 
+                <label className="form-field">
+                  <span>Tipo sesión</span>
+                  <select
+                    required
+                    value={appointmentPlan.sessionType}
+                    onChange={(event) => setAppointmentPlan((current) => ({
+                      ...current,
+                      sessionType: event.target.value,
+                      selectedLocationId: event.target.value === 'PRESENCIAL' ? current.selectedLocationId : '',
+                    }))}
+                  >
+                    <option value="">Selecciona el tipo de sesión</option>
+                    <option value="VIRTUAL">Virtual</option>
+                    <option value="PRESENCIAL">Presencial</option>
+                  </select>
+                </label>
+
+                {appointmentPlan.sessionType === 'PRESENCIAL' && (
+                  <label className="form-field form-field-wide">
+                    <span>Locación</span>
+                    <select
+                      required
+                      value={appointmentPlan.selectedLocationId}
+                      onChange={(event) => setAppointmentPlan((current) => ({
+                        ...current,
+                        selectedLocationId: event.target.value,
+                      }))}
+                    >
+                      <option value="">Selecciona una locación</option>
+                      {locations.map((location) => (
+                        <option key={location.id} value={location.id}>
+                          {location.name} - {location.hallName} ({location.address})
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+
                 <label className="form-field form-field-wide">
                   <span>Especialista</span>
                   <select
@@ -255,7 +447,7 @@ export function PatientPage() {
                       events={fullCalendarEvents}
                       datesSet={handleCalendarDatesSet}
                       select={handleSessionSelection}
-                      eventClick={handleSessionDelete}
+                      eventClick={handleSessionEdit}
                     />
                   )}
                 </div>
@@ -268,6 +460,55 @@ export function PatientPage() {
             </div>
           </form>
         </section>
+      )}
+
+      {editingSessionId && (
+        <div className="modal-backdrop" role="presentation" onMouseDown={handleSessionModalClose}>
+          <section
+            className="session-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="session-modal-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="session-modal-header">
+              <div>
+                <p className="eyebrow">Sesión seleccionada</p>
+                <h2 id="session-modal-title">Detalles de la sesión</h2>
+              </div>
+              <button className="modal-close" type="button" aria-label="Cerrar" onClick={handleSessionModalClose}>×</button>
+            </div>
+            <form className="session-modal-form" onSubmit={handleSessionModalSubmit}>
+              <label className="form-field">
+                <span>Notas adicionales</span>
+                <textarea
+                  rows={4}
+                  value={sessionNotes}
+                  onChange={(event) => setSessionNotes(event.target.value)}
+                  placeholder="Agrega información relevante para esta sesión"
+                />
+              </label>
+              <label className="form-field">
+                <span>Etiquetas</span>
+                <TagInput tags={sessionTags} onChange={setSessionTags} />
+                <small className="field-hint">Pulsa coma o Enter para crear una etiqueta.</small>
+              </label>
+              <div className="form-actions session-modal-actions">
+                <button
+                  className="button button-danger-icon"
+                  type="button"
+                  aria-label="Eliminar sesión"
+                  title="Eliminar sesión"
+                  onClick={handleSessionDelete}
+                >
+                  <DeleteOutlinedIcon aria-hidden="true" />
+                </button>
+                <button className="button button-secondary" type="button" onClick={handleSessionModalClose}>Cancelar</button>
+                <button className="button button-primary" type="submit">Guardar cambios</button>
+              </div>
+            </form>
+          </section>
+        </div>
       )}
 
       <section className="panel" aria-labelledby="patient-list-title">
@@ -283,7 +524,7 @@ export function PatientPage() {
             <table>
               <thead><tr><th>Paciente</th><th>Correo</th><th>Fecha de nacimiento</th></tr></thead>
               <tbody>{patients.map((patient) => (
-                <tr key={patient.patientUuid}><td><strong>{patient.firstName} {patient.lastName}</strong></td><td>{patient.email || 'Sin correo'}</td><td>{patient.birthdate || 'Sin fecha'}</td></tr>
+                <tr key={patient.patientId}><td><strong>{patient.firstName} {patient.lastName}</strong></td><td>{patient.email || 'Sin correo'}</td><td>{patient.birthdate || 'Sin fecha'}</td></tr>
               ))}</tbody>
             </table>
           </div>

@@ -12,4 +12,8 @@ export const specialistService = {
   ): Promise<SpecialistAppointment[]> {
     return specialistsApi.getAppointmentsBySpecialistId(specialistId, startDate, endDate)
   },
+
+  async deleteAppointmentBySpecialistId(specialistId: string, appointmentId: string): Promise<void> {
+    return specialistsApi.deleteAppointmentBySpecialistId(specialistId, appointmentId)
+  },
 }

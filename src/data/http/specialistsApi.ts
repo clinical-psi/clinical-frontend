@@ -13,6 +13,7 @@ export type SpecialistAppointment = {
   id: string
   appointmentStartDate: string
   appointmentEndDate: string
+  notes?: string
   patient?: {
     firstName?: string
     lastName?: string
@@ -32,5 +33,9 @@ export const specialistsApi = {
     )
 
     return data
+  },
+
+  deleteAppointmentBySpecialistId: async (specialistId: string, appointmentId: string): Promise<void> => {
+    await axios.delete(`${API_BASE_URL}/specialists/${specialistId}/appointments/${appointmentId}`)
   },
 }
