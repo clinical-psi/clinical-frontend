@@ -1,41 +1,53 @@
-import axios from 'axios'
-
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8080'
+import { get, post, del } from "./httpClient";
 
 export type Specialist = {
-  id: string
-  firstName: string
-  lastName: string
-  shortName: string
-}
+  id: string;
+  firstName: string;
+  lastName: string;
+  shortName: string;
+};
+
+export type CreateSpecialistRequest = {
+  firstName: string;
+  lastName: string;
+  notes?: string;
+};
 
 export type SpecialistAppointment = {
-  id: string
-  appointmentStartDate: string
-  appointmentEndDate: string
-  notes?: string
+  id: string;
+  appointmentStartDate: string;
+  appointmentEndDate: string;
+  notes?: string;
   patient?: {
-    firstName?: string
-    lastName?: string
-  }
-}
+    firstName?: string;
+    lastName?: string;
+  };
+};
 
 export const specialistsApi = {
   list: async () => {
-    const { data } = await axios.get<Specialist[]>(`${API_BASE_URL}/specialists`)
-    return data
+    return get<Specialist[]>("/specialists");
   },
 
-  getAppointmentsBySpecialistId: async (specialistId: string, startDate: string, endDate: string) => {
-    const { data } = await axios.get<SpecialistAppointment[]>(
-      `${API_BASE_URL}/specialists/${specialistId}/appointments`,
-      { params: { startDate, endDate } },
-    )
-
-    return data
+  create: async (specialist: CreateSpecialistRequest) => {
+    return post<Specialist>("/specialists", specialist);
   },
 
-  deleteAppointmentBySpecialistId: async (specialistId: string, appointmentId: string): Promise<void> => {
-    await axios.delete(`${API_BASE_URL}/specialists/${specialistId}/appointments/${appointmentId}`)
+  getAppointmentsBySpecialistId: async (
+    specialistId: string,
+    startDate: string,
+    endDate: string,
+  ) => {
+    return get<SpecialistAppointment[]>(
+      `/specialists/${specialistId}/appointments`,
+      { startDate, endDate },
+    );
   },
-}
+
+  deleteAppointmentBySpecialistId: async (
+    specialistId: string,
+    appointmentId: string,
+  ): Promise<void> => {
+    await del(`/specialists/${specialistId}/appointments/${appointmentId}`);
+  },
+};

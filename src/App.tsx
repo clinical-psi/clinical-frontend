@@ -1,17 +1,32 @@
-import './App.css'
-import { useState } from 'react'
-import { AppLayout } from './presentation/AppLayout'
-import { AppointmentsPage } from './presentation/AppointmentsPage'
-import { PatientPage } from './presentation/PatientPage'
+import "./App.css";
+import { useState } from "react";
+import { AuthProvider } from "./presentation/contexts/AuthProvider";
+import { ProtectedRoute } from "./presentation/ProtectedRoute";
+import { AppLayout } from "./presentation/AppLayout";
+import { AppointmentsPage } from "./presentation/AppointmentsPage";
+import { PatientPage } from "./presentation/PatientPage";
+import { SpecialistsPage } from "./presentation/SpecialistsPage";
 
-function App() {
-  const [activeItem, setActiveItem] = useState('patients')
+function AppContent() {
+  const [activeItem, setActiveItem] = useState("patients");
 
   return (
     <AppLayout activeItem={activeItem} onNavigate={setActiveItem}>
-      {activeItem === 'patients' ? <PatientPage /> : <AppointmentsPage />}
+      {activeItem === "patients" && <PatientPage />}
+      {activeItem === "specialists" && <SpecialistsPage />}
+      {activeItem === "appointments" && <AppointmentsPage />}
     </AppLayout>
-  )
+  );
 }
 
-export default App
+function App() {
+  return (
+    <AuthProvider>
+      <ProtectedRoute>
+        <AppContent />
+      </ProtectedRoute>
+    </AuthProvider>
+  );
+}
+
+export default App;
