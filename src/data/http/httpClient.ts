@@ -2,14 +2,29 @@ const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
 export const SESSION_EXPIRED_EVENT = "auth:session-expired";
 
-function assertOk(response: Response, path: string) {
+export class HttpError extends Error {
+  readonly status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+    this.name = "HttpError";
+  }
+}
+
+async function assertOk(response: Response, path: string) {
   if (response.ok) return;
 
-  // En /auth/* un 403 son credenciales invalidas, no sesion expirada
-  if (response.status === 403 && !path.startsWith("/auth/")) {
+  if (response.status === 401 && !path.startsWith("/auth/")) {
     window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
   }
-  throw new Error(`La solicitud fallo con el estado ${response.status}`);
+  let message = `La solicitud fallo con el estado ${response.status}`;
+  if (response.status === 403) {
+    message = "No tienes permiso para realizar esta operación.";
+  } else if (response.status === 409) {
+    message = "El registro cambió en otra sesión. Recarga antes de guardar de nuevo.";
+  }
+  throw new HttpError(response.status, message);
 }
 
 function getAuthHeaders(): Record<string, string> {
@@ -23,6 +38,12 @@ function getAuthHeaders(): Record<string, string> {
   }
 
   return headers;
+}
+
+// Tolera respuestas 204 o con cuerpo vacio
+async function parseBody<T>(response: Response): Promise<T> {
+  const text = await response.text();
+  return (text ? JSON.parse(text) : undefined) as T;
 }
 
 export async function get<T>(
@@ -40,9 +61,9 @@ export async function get<T>(
     headers: getAuthHeaders(),
   });
 
-  assertOk(response, path);
+  await assertOk(response, path);
 
-  return response.json() as Promise<T>;
+  return parseBody<T>(response);
 }
 
 export async function post<T>(path: string, data: unknown): Promise<T> {
@@ -52,9 +73,9 @@ export async function post<T>(path: string, data: unknown): Promise<T> {
     body: JSON.stringify(data),
   });
 
-  assertOk(response, path);
+  await assertOk(response, path);
 
-  return response.json() as Promise<T>;
+  return parseBody<T>(response);
 }
 
 export async function put<T>(path: string, data: unknown): Promise<T> {
@@ -64,9 +85,23 @@ export async function put<T>(path: string, data: unknown): Promise<T> {
     body: JSON.stringify(data),
   });
 
-  assertOk(response, path);
+  await assertOk(response, path);
 
-  return response.json() as Promise<T>;
+  return parseBody<T>(response);
+}
+
+// Sin Content-Type: el navegador define el boundary del multipart
+export async function putForm(path: string, body: FormData): Promise<void> {
+  const headers = getAuthHeaders();
+  delete headers["Content-Type"];
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "PUT",
+    headers,
+    body,
+  });
+
+  await assertOk(response, path);
 }
 
 export async function patch<T>(path: string, data?: unknown): Promise<T> {
@@ -76,9 +111,9 @@ export async function patch<T>(path: string, data?: unknown): Promise<T> {
     body: data ? JSON.stringify(data) : undefined,
   });
 
-  assertOk(response, path);
+  await assertOk(response, path);
 
-  return response.json() as Promise<T>;
+  return parseBody<T>(response);
 }
 
 export async function del(path: string): Promise<void> {
@@ -87,5 +122,5 @@ export async function del(path: string): Promise<void> {
     headers: getAuthHeaders(),
   });
 
-  assertOk(response, path);
+  await assertOk(response, path);
 }

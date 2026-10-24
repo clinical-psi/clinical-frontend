@@ -13,10 +13,12 @@ import {
   Badge,
   SegmentedControl,
   Paper,
+  ActionIcon,
+  Avatar,
 } from "@mantine/core";
-import { IconSquares, IconList } from "@tabler/icons-react";
-import { specialistService } from "../services/specialistService";
-import type { Specialist } from "../data/http/specialistsApi";
+import { IconSquares, IconList, IconEdit } from "@tabler/icons-react";
+import { specialistService } from "../../services/specialistService";
+import type { Specialist } from "../../data/http/specialistsApi";
 import { SpecialistEditForm } from "./SpecialistEditForm";
 
 export function SpecialistsPage() {
@@ -24,6 +26,9 @@ export function SpecialistsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [editingSpecialistId, setEditingSpecialistId] = useState<string | null>(
+    null,
+  );
 
   const [viewMode, setViewMode] = useState<"cards" | "list">("cards");
 
@@ -51,17 +56,25 @@ export function SpecialistsPage() {
     return (
       <Container size="lg" py="xl">
         <SpecialistEditForm
+          editingSpecialistId={editingSpecialistId ?? undefined}
           onCancel={() => {
             setShowForm(false);
+            setEditingSpecialistId(null);
             loadSpecialists();
           }}
           onSaveSuccess={() => {
             setShowForm(false);
+            setEditingSpecialistId(null);
             loadSpecialists();
           }}
         />
       </Container>
     );
+  }
+
+  function handleSpecialistEdit(specialist: Specialist): void {
+    setEditingSpecialistId(specialist.id);
+    setShowForm(true);
   }
 
   return (
@@ -74,7 +87,14 @@ export function SpecialistsPage() {
             Total: {specialists.length} especialistas
           </Text>
         </div>
-        <Button onClick={() => setShowForm(true)}>Nuevo Especialista</Button>
+        <Button
+          onClick={() => {
+            setEditingSpecialistId(null);
+            setShowForm(true);
+          }}
+        >
+          Nuevo Especialista
+        </Button>
       </Group>
 
       {/* Error Alert */}
@@ -137,17 +157,35 @@ export function SpecialistsPage() {
               <Card shadow="sm" padding="lg" radius="md" withBorder>
                 <Card.Section withBorder inheritPadding py="md">
                   <Group justify="space-between" align="flex-start">
-                    <div>
-                      <Title order={3}>{specialist.firstName}</Title>
-                      <Text size="sm" c="dimmed">
-                        {specialist.lastName}
-                      </Text>
-                    </div>
-                    {specialist.shortName && (
-                      <Badge size="sm" variant="light">
-                        {specialist.shortName}
-                      </Badge>
-                    )}
+                    <Group gap="sm" wrap="nowrap">
+                      <Avatar
+                        src={specialist.photoUrl}
+                        size={56}
+                        radius="xl"
+                        name={`${specialist.firstName} ${specialist.lastName}`}
+                      />
+                      <div>
+                        <Title order={3}>{specialist.firstName}</Title>
+                        <Text size="sm" c="dimmed">
+                          {specialist.lastName}
+                        </Text>
+                      </div>
+                    </Group>
+                    <Group gap="xs" wrap="nowrap">
+                      {specialist.shortName && (
+                        <Badge size="sm" variant="light">
+                          {specialist.shortName}
+                        </Badge>
+                      )}
+                      <ActionIcon
+                        size="sm"
+                        variant="default"
+                        onClick={() => handleSpecialistEdit(specialist)}
+                        title="Editar especialista"
+                      >
+                        <IconEdit size={16} />
+                      </ActionIcon>
+                    </Group>
                   </Group>
                 </Card.Section>
 
@@ -166,6 +204,7 @@ export function SpecialistsPage() {
               <Table.Th>Nombre</Table.Th>
               <Table.Th>Apellido</Table.Th>
               <Table.Th>Alias</Table.Th>
+              <Table.Th w={120}>Acciones</Table.Th>
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
@@ -181,6 +220,16 @@ export function SpecialistsPage() {
                   ) : (
                     "—"
                   )}
+                </Table.Td>
+                <Table.Td>
+                  <ActionIcon
+                    size="sm"
+                    variant="default"
+                    onClick={() => handleSpecialistEdit(specialist)}
+                    title="Editar especialista"
+                  >
+                    <IconEdit size={16} />
+                  </ActionIcon>
                 </Table.Td>
               </Table.Tr>
             ))}

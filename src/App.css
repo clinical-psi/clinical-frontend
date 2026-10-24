@@ -322,7 +322,7 @@ textarea {
 }
 input::placeholder,
 textarea::placeholder {
-  color: #91a09e;
+  color: #4ca095;
 }
 input:hover,
 select:hover,
@@ -1175,4 +1175,11 @@ tbody tr:hover {
   border: 1px solid var(--line);
   border-radius: 6px;
   background: #ffffff;
+}
+
+/* Forzar color de placeholder en todos los navegadores */
+.text-field input::placeholder,
+.text-field textarea::placeholder {
+  color: #adb5bd !important; /* Cambia este tono por el más claro que desees (ej: gray-4 o gray-3) */
+  opacity: 1 !important;
 }

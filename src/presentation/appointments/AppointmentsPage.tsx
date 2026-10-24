@@ -20,24 +20,24 @@ import {
 import { IconX } from "@tabler/icons-react";
 import Snackbar from "@mui/material/Snackbar";
 import MUIAlert from "@mui/material/Alert";
-import { specialistService } from "../services/specialistService";
-import { locationService } from "../services/locationService";
+import { specialistService } from "../../services/specialistService";
+import { locationService } from "../../services/locationService";
 import {
   type AppointmentMode,
   type Appointment,
   type FilterAppointmentsRequest,
-} from "../data/http/appointmentsApi";
-import type { Specialist } from "../data/http/specialistsApi";
-import type { Location } from "../data/http/locationsApi";
+} from "../../data/http/appointmentsApi";
+import type { Specialist } from "../../data/http/specialistsApi";
+import type { Location } from "../../data/http/locationsApi";
 import {
   normalizeCalendarDateTime,
   calculateDateRange,
   formatToDateTime,
-} from "../util/utils";
-import { appointmentService } from "../services/appointmentService";
-import { AppointmentViewModal } from "./AppointmentViewModal";
-import { CreateAppointmentModal } from "./CreateAppointmentModal";
-import { getNextAvailableHourOfDay } from "../util/utils";
+} from "../../util/utils";
+import { appointmentService } from "../../services/appointmentService";
+import { AppointmentViewModal } from "../../presentation/appointments/AppointmentViewModal";
+import { CreateAppointmentModal } from "../../presentation/appointments/CreateAppointmentModal";
+import { getNextAvailableHourOfDay } from "../../util/utils";
 
 export function AppointmentsPage() {
   return (

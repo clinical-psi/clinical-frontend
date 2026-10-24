@@ -1,6 +1,6 @@
 import { Modal, Stack, Text, Group, Button } from "@mantine/core";
-import { appointmentService } from "../services/appointmentService";
-import { formatAppointmentDateTime } from "../util/utils";
+import { appointmentService } from "../../services/appointmentService";
+import { formatAppointmentDateTime } from "../../util/utils";
 import type { AppointmentViewModalProps } from "./AppointmentsPage";
 
 export function AppointmentViewModal({

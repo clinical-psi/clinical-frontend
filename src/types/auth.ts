@@ -10,6 +10,8 @@ export interface AuthResponse {
   token: string;
   type: string;
   userId: number;
+  roles?: { roleName: string }[];
+  mustChangePassword?: boolean;
 }
 
 export interface AuthContextType {
@@ -18,4 +20,5 @@ export interface AuthContextType {
   loading: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => void;
+  markPasswordChanged: () => void;
 }

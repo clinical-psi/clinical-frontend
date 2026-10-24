@@ -1,23 +1,13 @@
 import type { ReactNode } from "react";
 import { useAuth } from "../hooks/useAuth";
-
-type NavigationItem = {
-  id: string;
-  label: string;
-  icon: string;
-};
+import { useRoles } from "../hooks/useRoles";
+import type { MenuItemId } from "../config/permissions";
 
 type AppLayoutProps = {
   activeItem: string;
   children: ReactNode;
-  onNavigate: (itemId: string) => void;
+  onNavigate: (itemId: MenuItemId) => void;
 };
-
-const navigationItems: NavigationItem[] = [
-  { id: "patients", label: "Pacientes", icon: "P" },
-  { id: "specialists", label: "Especialistas", icon: "E" },
-  { id: "appointments", label: "Citas", icon: "C" },
-];
 
 export function AppLayout({
   activeItem,
@@ -25,6 +15,7 @@ export function AppLayout({
   onNavigate,
 }: AppLayoutProps) {
   const { user, logout } = useAuth();
+  const { menuItems } = useRoles();
 
   return (
     <div className="app-layout">
@@ -39,7 +30,7 @@ export function AppLayout({
 
         <nav className="sidebar-nav" aria-label="Navegacion principal">
           <p className="nav-label">Menu principal</p>
-          {navigationItems.map((item) => (
+          {menuItems.map((item) => (
             <button
               className={`nav-item ${activeItem === item.id ? "nav-item-active" : ""}`}
               key={item.id}

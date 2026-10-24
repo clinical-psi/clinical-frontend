@@ -11,12 +11,13 @@ import {
   TextInput,
 } from "@mantine/core";
 import { useEffect, useState } from "react";
-import { patientService } from "../services/patientService";
-import type { GetPatient } from "../types/get-patient";
-import type { AppointmentMode } from "../data/http/appointmentsApi";
+import { patientService } from "../../services/patientService";
+import { useRoles } from "../../hooks/useRoles";
+import type { GetPatient } from "../../types/get-patient";
+import type { AppointmentMode } from "../../data/http/appointmentsApi";
 import { TagInput } from "./AppointmentsPage";
-import type { Specialist } from "../data/http/specialistsApi";
-import type { Location } from "../data/http/locationsApi";
+import type { Specialist } from "../../data/http/specialistsApi";
+import type { Location } from "../../data/http/locationsApi";
 import type { FormEvent } from "react";
 
 export function CreateAppointmentModal({
@@ -40,6 +41,7 @@ export function CreateAppointmentModal({
 
   const isPresencial = formData.appointmentMode === "INPERSON";
 
+  const { roleNames } = useRoles();
   const [patientQuery, setPatientQuery] = useState("");
   const [patientResults, setPatientResults] = useState<GetPatient[]>([]);
 
@@ -52,12 +54,12 @@ export function CreateAppointmentModal({
     }
     const timer = setTimeout(() => {
       patientService
-        .getAll(q)
+        .getAll(roleNames, q)
         .then((result) => setPatientResults(result.content))
         .catch(() => setPatientResults([]));
     }, 300);
     return () => clearTimeout(timer);
-  }, [patientQuery, open]);
+  }, [roleNames, patientQuery, open]);
 
   const patientOptions = patientResults.map((p) => ({
     value: p.id,

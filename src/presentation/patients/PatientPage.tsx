@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useRoles } from "../../hooks/useRoles";
 import {
   Table,
   TextInput,
@@ -13,16 +14,17 @@ import {
   Loader,
   Alert,
 } from "@mantine/core";
-import { IconSearch, IconEdit, IconTrash } from "@tabler/icons-react";
-import { patientService } from "../services/patientService";
-import type { GetPatient } from "../types/get-patient";
+import { IconEdit, IconTrash } from "@tabler/icons-react";
+import { patientService } from "../../services/patientService";
+import type { GetPatient } from "../../types/get-patient";
 import { PatientEditForm } from "./PatientEditForm";
-import { emergencyContactService } from "../services/emergencyContactService";
 
 export function PatientPage() {
+  const { roleNames, can } = useRoles();
   const [patients, setPatients] = useState<GetPatient[]>([]);
   const [patientPage, setPatientPage] = useState(1);
   const [patientTotal, setPatientTotal] = useState(0);
+  const [search, setSearch] = useState("");
   const [patientNameFilter, setPatientNameFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -35,7 +37,7 @@ export function PatientPage() {
   useEffect(() => {
     setLoading(true);
     patientService
-      .getAll(patientNameFilter, patientPage - 1, patientPageSize)
+      .getAll(roleNames, patientNameFilter, patientPage - 1, patientPageSize)
       .then((result) => {
         setPatients(result.content);
         setPatientTotal(result.totalElements);
@@ -46,7 +48,7 @@ export function PatientPage() {
         setPatients([]);
       })
       .finally(() => setLoading(false));
-  }, [patientPage, patientNameFilter]);
+  }, [roleNames, patientPage, patientNameFilter]);
 
   function getFilteredPatients(): GetPatient[] {
     return patients.filter((patient) => {
@@ -73,6 +75,7 @@ export function PatientPage() {
     try {
       await patientService.deactivate(patientId);
       const refreshedPage = await patientService.getAll(
+        roleNames,
         patientNameFilter,
         patientPage - 1,
         patientPageSize,
@@ -98,6 +101,7 @@ export function PatientPage() {
             setEditingPatientId(null);
             const refreshPage = async () => {
               const result = await patientService.getAll(
+        roleNames,
                 patientNameFilter,
                 patientPage - 1,
                 patientPageSize,
@@ -108,16 +112,19 @@ export function PatientPage() {
             refreshPage();
           }}
           onSaveSuccess={() => {
+            setLoading(true);
             setShowForm(false);
             setEditingPatientId(null);
             const refreshPage = async () => {
               const result = await patientService.getAll(
+        roleNames,
                 patientNameFilter,
                 patientPage - 1,
                 patientPageSize,
               );
               setPatients(result.content);
               setPatientTotal(result.totalElements);
+              setLoading(false);
             };
             refreshPage();
           }}
@@ -152,12 +159,28 @@ export function PatientPage() {
       )}
 
       <Stack gap="md">
-        <TextInput
-          placeholder="Buscar por nombre..."
-          leftSection={<IconSearch size={16} />}
-          value={patientNameFilter}
-          onChange={(e) => setPatientNameFilter(e.currentTarget.value)}
-        />
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            setPatientPage(1);
+            setPatientNameFilter(search.trim());
+          }}
+        >
+          <Group>
+            <TextInput
+              type="search"
+              name="search_query_patients"
+              autoComplete="off"
+              placeholder="Buscar por nombres, apellidos o email"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{ flex: 1 }}
+            />
+            <Button type="submit" variant="default">
+              Buscar
+            </Button>
+          </Group>
+        </form>
 
         {loading ? (
           <Loader />
@@ -200,15 +223,17 @@ export function PatientPage() {
                         >
                           <IconEdit size={16} />
                         </ActionIcon>
-                        <ActionIcon
-                          size="sm"
-                          color="red"
-                          variant="default"
-                          onClick={() => handlePatientDeactivate(patient)}
-                          title="Dar de baja"
-                        >
-                          <IconTrash size={16} />
-                        </ActionIcon>
+                        {can("patients.deactivate") && (
+                          <ActionIcon
+                            size="sm"
+                            color="red"
+                            variant="default"
+                            onClick={() => handlePatientDeactivate(patient)}
+                            title="Dar de baja"
+                          >
+                            <IconTrash size={16} />
+                          </ActionIcon>
+                        )}
                       </Group>
                     </Table.Td>
                   </Table.Tr>

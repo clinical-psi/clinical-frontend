@@ -96,3 +96,41 @@
 .login-button:active:not(:disabled) {
   transform: translateY(0);
 }
+
+.login-links {
+  margin-top: 16px;
+  text-align: center;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: #667eea;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.link-button:hover {
+  text-decoration: underline;
+}
+
+.info-message {
+  background-color: #eef2ff;
+  color: #3f4a8a;
+  padding: 10px 12px;
+  border-radius: 4px;
+  margin-bottom: 15px;
+  font-size: 14px;
+  border-left: 4px solid #667eea;
+}
+
+.success-message {
+  background-color: #eefaf0;
+  color: #2e622e;
+  padding: 10px 12px;
+  border-radius: 4px;
+  margin-bottom: 15px;
+  font-size: 14px;
+  border-left: 4px solid #6fa785;
+}

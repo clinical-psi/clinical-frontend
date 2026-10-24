@@ -1,5 +1,11 @@
 import type { LoginCredentials, AuthResponse } from "../types/auth";
-import { loginUser } from "../data/http/authApi";
+import {
+  loginUser,
+  changePassword,
+  forgotPassword,
+  verifyOtp,
+  resetPassword,
+} from "../data/http/authApi";
 
 const TOKEN_KEY = "auth_token";
 const USER_KEY = "auth_user";
@@ -13,6 +19,25 @@ export const authService = {
     localStorage.setItem(USER_KEY, JSON.stringify(response));
 
     return response;
+  },
+
+  async changePassword(
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<void> {
+    return changePassword(currentPassword, newPassword);
+  },
+
+  forgotPassword,
+  verifyOtp,
+  resetPassword,
+
+  clearMustChangePassword(): AuthResponse | null {
+    const user = this.getUser();
+    if (!user) return null;
+    const updated = { ...user, mustChangePassword: false };
+    localStorage.setItem(USER_KEY, JSON.stringify(updated));
+    return updated;
   },
 
   logout(): void {

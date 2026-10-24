@@ -7,6 +7,7 @@ export type CreatePatient = {
   birthdate?: string;
   notes?: string;
   phoneNumber?: string;
+  specialistId?: string;
 };
 
 export type CreateAppointment = {
@@ -20,6 +21,13 @@ export type CreateAppointment = {
 };
 
 export type CreatePatientRequest = {
+  documentType?: string;
+  documentNumber?: string;
+  preferredName?: string;
+  addressLine?: string;
+  preferredLanguage?: string;
+  genderIdentity?: string;
+  specialistId?: string | null;
   firstName: string;
   lastName: string;
   email?: string;

@@ -44,6 +44,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsAuthenticated(false);
   };
 
+  const markPasswordChanged = () => {
+    const updated = authService.clearMustChangePassword();
+    if (updated) setUser(updated);
+  };
+
   useEffect(() => {
     const handleExpired = () => {
       authService.logout();
@@ -61,6 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     login,
     logout,
+    markPasswordChanged,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

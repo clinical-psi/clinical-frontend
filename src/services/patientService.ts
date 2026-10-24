@@ -1,4 +1,6 @@
 import { patientsApi } from "../data/http/patientsApi";
+import { specialistsApi } from "../data/http/specialistsApi";
+import { ROLES, resolveByRole } from "../config/roles";
 import type { CreatePatientRequest } from "../types/create-patient";
 import type {
   GetPatient,
@@ -6,9 +8,31 @@ import type {
   PatientPage,
 } from "../types/get-patient";
 
+type ListPatients = (
+  q: string,
+  page: number,
+  size: number,
+) => Promise<PatientPage>;
+
+// /specialists/me/patients devuelve una lista completa: se filtra y pagina en cliente.
+const listMyPatients: ListPatients = async (q, page, size) => {
+  const term = q.trim().toLowerCase();
+  return await specialistsApi.getMyPatients(term, page, size);
+};
+
+const listPatientStrategies = {
+  [ROLES.SPECIALIST]: listMyPatients,
+  default: patientsApi.list as ListPatients,
+};
+
 export const patientService = {
-  async getAll(q: string, page = 0, size = 10): Promise<PatientPage> {
-    return patientsApi.list(q, page, size);
+  async getAll(
+    roleNames: string[],
+    q: string,
+    page = 0,
+    size = 10,
+  ): Promise<PatientPage> {
+    return resolveByRole(roleNames, listPatientStrategies)(q, page, size);
   },
 
   async getById(id: string): Promise<GetPatient> {

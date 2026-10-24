@@ -1,4 +1,10 @@
 export type GetPatient = {
+  documentType?: string;
+  documentNumber?: string;
+  preferredName?: string;
+  addressLine?: string;
+  preferredLanguage?: string;
+  genderIdentity?: string;
   id: string;
   patientId: string;
   firstName: string;
@@ -7,6 +13,9 @@ export type GetPatient = {
   birthdate?: string;
   notes?: string;
   phoneNumber?: string;
+  specialist: {
+    id?: string;
+  };
 };
 
 export type PatientPage = {

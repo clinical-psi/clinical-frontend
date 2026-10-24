@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 import type { LoginCredentials } from "../types/auth";
+import { ForgotPasswordPage } from "./ForgotPasswordPage";
 import "./LoginPage.css";
 
 export function LoginPage() {
@@ -10,6 +11,7 @@ export function LoginPage() {
     password: "",
   });
   const [error, setError] = useState("");
+  const [recovering, setRecovering] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -35,6 +37,10 @@ export function LoginPage() {
       setError(err instanceof Error ? err.message : "Error al iniciar sesión");
     }
   };
+
+  if (recovering) {
+    return <ForgotPasswordPage onBack={() => setRecovering(false)} />;
+  }
 
   return (
     <div className="login-container">
@@ -74,6 +80,15 @@ export function LoginPage() {
           <button type="submit" disabled={loading} className="login-button">
             {loading ? "Iniciando sesión..." : "Iniciar Sesión"}
           </button>
+          <div className="login-links">
+            <button
+              type="button"
+              className="link-button"
+              onClick={() => setRecovering(true)}
+            >
+              ¿Olvidaste tu contraseña?
+            </button>
+          </div>
         </form>
       </div>
     </div>
