@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Container,
   Button,
@@ -20,6 +20,7 @@ import { IconSquares, IconList, IconEdit } from "@tabler/icons-react";
 import { specialistService } from "../../services/specialistService";
 import type { Specialist } from "../../data/http/specialistsApi";
 import { SpecialistEditForm } from "./SpecialistEditForm";
+import { useOnceEffect } from "../../hooks/useOnceEffect";
 
 export function SpecialistsPage() {
   const [specialists, setSpecialists] = useState<Specialist[]>([]);
@@ -32,9 +33,9 @@ export function SpecialistsPage() {
 
   const [viewMode, setViewMode] = useState<"cards" | "list">("cards");
 
-  useEffect(() => {
+  useOnceEffect(() => {
     loadSpecialists();
-  }, []);
+  });
 
   async function loadSpecialists() {
     setLoading(true);
@@ -201,9 +202,9 @@ export function SpecialistsPage() {
         <Table striped highlightOnHover>
           <Table.Thead>
             <Table.Tr>
-              <Table.Th>Nombre</Table.Th>
-              <Table.Th>Apellido</Table.Th>
-              <Table.Th>Alias</Table.Th>
+              <Table.Th>Especialista</Table.Th>
+              <Table.Th>Correo</Table.Th>
+              <Table.Th>Telefono/Celular</Table.Th>
               <Table.Th w={120}>Acciones</Table.Th>
             </Table.Tr>
           </Table.Thead>
@@ -211,16 +212,12 @@ export function SpecialistsPage() {
             {specialists.map((specialist) => (
               <Table.Tr key={specialist.id}>
                 <Table.Td>
-                  <strong>{specialist.firstName}</strong>
+                  <strong>
+                    {specialist.firstName} {specialist.lastName}
+                  </strong>
                 </Table.Td>
-                <Table.Td>{specialist.lastName}</Table.Td>
-                <Table.Td>
-                  {specialist.shortName ? (
-                    <Badge size="sm">{specialist.shortName}</Badge>
-                  ) : (
-                    "—"
-                  )}
-                </Table.Td>
+                <Table.Td>{specialist.email}</Table.Td>
+                <Table.Td>{specialist.phoneNumber}</Table.Td>
                 <Table.Td>
                   <ActionIcon
                     size="sm"

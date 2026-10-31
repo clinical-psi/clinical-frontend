@@ -29,6 +29,10 @@ export const specialistsApi = {
     return patch<Specialist>(`/specialists/${specialistId}`, specialist);
   },
 
+  deactivate: async (specialistId: string) => {
+    return del(`/specialists/${specialistId}/deactivate`, {});
+  },
+
   uploadPhoto: async (specialistId: string, file: File): Promise<void> => {
     const formData = new FormData();
     formData.append("file", file);

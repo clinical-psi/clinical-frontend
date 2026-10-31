@@ -30,6 +30,10 @@ export const patientsApi = {
     return put<GetPatient>(`/patients/${id}`, patient);
   },
 
+  updateStatus: async (id: string, body: { status: string }) => {
+    return patch<GetPatient>(`/patients/${id}/status`, body);
+  },
+
   deactivate: async (id: string): Promise<void> => {
     await patch(`/patients/${id}/deactivate`);
   },

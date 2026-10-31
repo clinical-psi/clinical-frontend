@@ -6,6 +6,7 @@ export type GetPatient = {
   preferredLanguage?: string;
   genderIdentity?: string;
   id: string;
+  status: string;
   patientId: string;
   firstName: string;
   lastName: string;

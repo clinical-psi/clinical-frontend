@@ -5,6 +5,7 @@ import type { MantineThemeOverride } from "@mantine/core";
 import "@mantine/core/styles.css";
 import "./index.css";
 import App from "./App.tsx";
+import { ModalsProvider } from "@mantine/modals";
 
 const theme: MantineThemeOverride = {
   primaryColor: "blue",
@@ -75,7 +76,9 @@ const theme: MantineThemeOverride = {
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <MantineProvider theme={theme}>
-      <App />
+      <ModalsProvider>
+        <App />
+      </ModalsProvider>
     </MantineProvider>
   </StrictMode>,
 );

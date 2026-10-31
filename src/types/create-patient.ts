@@ -21,12 +21,12 @@ export type CreateAppointment = {
 };
 
 export type CreatePatientRequest = {
-  documentType?: string;
+  documentType?: string | null;
   documentNumber?: string;
   preferredName?: string;
   addressLine?: string;
   preferredLanguage?: string;
-  genderIdentity?: string;
+  genderIdentity?: string | null;
   specialistId?: string | null;
   firstName: string;
   lastName: string;

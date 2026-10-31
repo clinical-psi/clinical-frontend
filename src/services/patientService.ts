@@ -55,6 +55,10 @@ export const patientService = {
     return patientsApi.update(id, patient);
   },
 
+  async updateStatus(id: string, status: string): Promise<GetPatient> {
+    return patientsApi.updateStatus(id, { status });
+  },
+
   async deactivate(id: string): Promise<void> {
     return patientsApi.deactivate(id);
   },

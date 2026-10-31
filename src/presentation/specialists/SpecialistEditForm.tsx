@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { EMAIL_REGEX } from "../../util/constants";
 import {
   Container,
   Paper,
@@ -14,10 +14,18 @@ import {
   Avatar,
   FileInput,
   Loader,
+  Tabs,
+  Tooltip,
+  ActionIcon,
 } from "@mantine/core";
 import Snackbar from "@mui/material/Snackbar";
 import MUIAlert from "@mui/material/Alert";
 import { specialistService } from "../../services/specialistService";
+import { PhoneInput } from "../../components/PhoneInput";
+import { useState, type FormEvent } from "react";
+import { SpecialistConfig } from "./SpecialistConfig";
+import { IconInfoCircle } from "@tabler/icons-react";
+import { useOnceEffect } from "../../hooks/useOnceEffect";
 
 type SpecialistEditFormProps = {
   editingSpecialistId?: string;
@@ -31,6 +39,7 @@ export function SpecialistEditForm({
   onSaveSuccess,
 }: SpecialistEditFormProps) {
   const [error, setError] = useState("");
+  const [showValidationErrors, setShowValidationErrors] = useState(false); // Para disparar los errores en los inputs
   const [saving, setSaving] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [specialistForm, setSpecialistForm] = useState({
@@ -47,6 +56,7 @@ export function SpecialistEditForm({
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   // Al crear aun no hay id: la foto queda pendiente y se sube tras el POST
   const [pendingPhoto, setPendingPhoto] = useState<File | null>(null);
+  const [isPhoneValid, setIsPhoneValid] = useState(false);
 
   async function handlePhotoChange(file: File | null) {
     if (!file) return;
@@ -78,7 +88,7 @@ export function SpecialistEditForm({
     }
   }
 
-  useEffect(() => {
+  useOnceEffect(() => {
     if (!editingSpecialistId) return;
 
     (async () => {
@@ -103,17 +113,28 @@ export function SpecialistEditForm({
         );
       }
     })();
-  }, [editingSpecialistId]);
+  });
 
   async function handleSpecialistSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
 
-    if (!specialistForm.firstName.trim() || !specialistForm.lastName.trim()) {
-      setError("Nombre y apellido son requeridos");
+    const isEmailValid = EMAIL_REGEX.test(specialistForm.email);
+    const isFormValid =
+      specialistForm.email.trim() !== "" &&
+      isEmailValid &&
+      isPhoneValid &&
+      specialistForm.firstName.trim() !== "" &&
+      specialistForm.lastName.trim() !== "";
+
+    // Si alguien fuerza el submit o el botón está habilitado pero hay fallas:
+    if (!isFormValid) {
+      setShowValidationErrors(true); // Activa los mensajes rojos en los inputs
+      setError(
+        "Por favor, corrige los campos marcados en rojo antes de continuar.",
+      );
       return;
     }
-
     const request = {
       firstName: specialistForm.firstName.trim(),
       lastName: specialistForm.lastName.trim(),
@@ -152,127 +173,204 @@ export function SpecialistEditForm({
     <Container size="lg" py="xl">
       <Paper shadow="sm" p="lg" radius="md" mb="lg">
         {/* Header */}
-        <Title order={2} mb="lg">
-          {editingSpecialistId ? "Editar Especialista" : "Nuevo Especialista"}
-        </Title>
+        <Group justify="space-between" mb="lg">
+          <Title order={2}>
+            {editingSpecialistId ? "Editar Especialista" : "Nuevo Especialista"}
+          </Title>
+          <Button variant="default" onClick={onCancel} disabled={saving}>
+            Volver a especialistas
+          </Button>
+        </Group>
 
-        {/* Formulario */}
-        <form onSubmit={handleSpecialistSubmit}>
-          <Stack gap="md">
-            {/* Error Alert */}
-            {error && (
-              <Alert title="Error" color="red">
-                {error}
-              </Alert>
-            )}
+        <Tabs defaultValue="general" keepMounted={false}>
+          <Tabs.List>
+            <Tabs.Tab value="general">Datos generales</Tabs.Tab>
+            <Tabs.Tab value="configuration">Configuración</Tabs.Tab>
+          </Tabs.List>
+          <Tabs.Panel value="general" pt="md">
+            {/* Formulario */}
+            <form onSubmit={handleSpecialistSubmit} noValidate>
+              <Stack gap="md">
+                {/* Error Alert */}
+                {error && (
+                  <Alert title="Error" color="red">
+                    {error}
+                  </Alert>
+                )}
 
-            {/* Foto de perfil */}
-            <Group>
-              <Avatar
-                src={photoUrl}
-                size={80}
-                radius="xl"
-                name={`${specialistForm.firstName} ${specialistForm.lastName}`}
-              />
-              <FileInput
-                label="Foto de perfil"
-                placeholder="Seleccionar imagen"
-                accept="image/*"
-                disabled={uploadingPhoto}
-                rightSection={uploadingPhoto ? <Loader size="xs" /> : undefined}
-                onChange={handlePhotoChange}
-              />
-            </Group>
+                {/* Foto de perfil */}
+                <Group>
+                  <Avatar
+                    src={photoUrl}
+                    size={80}
+                    radius="xl"
+                    name={`${specialistForm.firstName} ${specialistForm.lastName}`}
+                  />
+                  <FileInput
+                    label="Foto de perfil"
+                    placeholder="Seleccionar imagen"
+                    accept="image/*"
+                    disabled={uploadingPhoto}
+                    rightSection={
+                      uploadingPhoto ? <Loader size="xs" /> : undefined
+                    }
+                    onChange={handlePhotoChange}
+                  />
+                </Group>
 
-            {/* Datos Personales */}
-            <TextInput
-              label="Nombre"
-              placeholder="Ej. Juan"
-              required
-              value={specialistForm.firstName}
-              onChange={(event) =>
-                setSpecialistForm((current) => ({
-                  ...current,
-                  firstName: event.target.value,
-                }))
-              }
+                {/* Datos Personales */}
+                <TextInput
+                  className="text-field"
+                  label="Nombre"
+                  placeholder="Ej. Juan"
+                  required
+                  maxLength={50}
+                  value={specialistForm.firstName}
+                  onChange={(event) =>
+                    setSpecialistForm((current) => ({
+                      ...current,
+                      firstName: event.target.value,
+                    }))
+                  }
+                  error={
+                    showValidationErrors && !specialistForm.firstName
+                      ? "El nombre es obligatorio"
+                      : ""
+                  }
+                />
+
+                <TextInput
+                  className="text-field"
+                  label="Apellido"
+                  placeholder="Ej. Pérez"
+                  required
+                  maxLength={50}
+                  value={specialistForm.lastName}
+                  onChange={(event) =>
+                    setSpecialistForm((current) => ({
+                      ...current,
+                      lastName: event.target.value,
+                    }))
+                  }
+                  error={
+                    showValidationErrors && !specialistForm.lastName
+                      ? "El apellido es obligatorio"
+                      : ""
+                  }
+                />
+
+                <TextInput
+                  className="text-field"
+                  label="Email"
+                  required
+                  placeholder="Ej. juan@correo.com"
+                  maxLength={100}
+                  value={specialistForm.email}
+                  onChange={(event) =>
+                    setSpecialistForm((current) => ({
+                      ...current,
+                      email: event.target.value,
+                    }))
+                  }
+                  error={
+                    showValidationErrors && !specialistForm.email
+                      ? "El email es obligatorio"
+                      : showValidationErrors &&
+                          !EMAIL_REGEX.test(specialistForm.email)
+                        ? "Ingresa un correo electrónico válido"
+                        : undefined
+                  }
+                />
+
+                {/* Fila con dos campos uno al lado del otro */}
+                <Group grow preventGrowOverflow={false} gap="md">
+                  <PhoneInput
+                    className="text-field"
+                    label="Teléfono/Celular de contacto"
+                    required
+                    value={specialistForm.phoneNumber}
+                    onChange={(fullPhone, isValid) => {
+                      setIsPhoneValid(isValid);
+                      setSpecialistForm((current) => ({
+                        ...current,
+                        phoneNumber: fullPhone,
+                      }));
+                    }}
+                    error={
+                      showValidationErrors && !specialistForm.phoneNumber
+                        ? "El teléfono es obligatorio"
+                        : ""
+                    }
+                  />
+
+                  <TextInput
+                    className="text-field"
+                    label="Número de colegiatura (opcional)"
+                    placeholder="Ej. CPsP 12345 o CMP 67890"
+                    rightSection={
+                      <Tooltip
+                        label="Código asignado por el colegio profesional correspondiente"
+                        position="top"
+                      >
+                        <ActionIcon variant="subtle" color="gray" size="sm">
+                          <IconInfoCircle size={16} />
+                        </ActionIcon>
+                      </Tooltip>
+                    }
+                    w={{ base: "100%", sm: 320 }} // Ancho recomendado para un código corto
+                  />
+                </Group>
+
+                {/* Notas */}
+                <Textarea
+                  className="text-field"
+                  label="Notas (opcional)"
+                  placeholder="Ej. Especialista en terapia cognitiva"
+                  rows={4}
+                  value={specialistForm.notes}
+                  onChange={(event) =>
+                    setSpecialistForm((current) => ({
+                      ...current,
+                      notes: event.target.value,
+                    }))
+                  }
+                />
+
+                {!userId ? (
+                  <Checkbox
+                    label="Registrar usuario"
+                    checked={createUser}
+                    onChange={(event) =>
+                      setCreateUser(event.currentTarget.checked)
+                    }
+                  />
+                ) : (
+                  <Text c="dimmed" size="sm">
+                    Este especialista ya tiene un usuario registrado
+                  </Text>
+                )}
+
+                {/* Botones de acción */}
+                <Group justify="flex-end" mt="lg">
+                  <Button variant="default" onClick={onCancel}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" loading={saving}>
+                    {saving ? "Guardando..." : "Guardar especialista"}
+                  </Button>
+                </Group>
+              </Stack>
+            </form>
+          </Tabs.Panel>
+          <Tabs.Panel value="configuration">
+            <SpecialistConfig
+              editingSpecialistId={editingSpecialistId ?? ""}
+              saving={saving}
+              onCancel={() => {}}
+              onSaveSuccess={onSaveSuccess}
             />
-
-            <TextInput
-              label="Apellido"
-              placeholder="Ej. Pérez"
-              required
-              value={specialistForm.lastName}
-              onChange={(event) =>
-                setSpecialistForm((current) => ({
-                  ...current,
-                  lastName: event.target.value,
-                }))
-              }
-            />
-
-            <TextInput
-              label="Email"
-              type="email"
-              placeholder="Ej. juan@correo.com"
-              value={specialistForm.email}
-              onChange={(event) =>
-                setSpecialistForm((current) => ({
-                  ...current,
-                  email: event.target.value,
-                }))
-              }
-            />
-
-            <TextInput
-              label="Teléfono"
-              placeholder="Ej. 999888777"
-              value={specialistForm.phoneNumber}
-              onChange={(event) =>
-                setSpecialistForm((current) => ({
-                  ...current,
-                  phoneNumber: event.target.value,
-                }))
-              }
-            />
-
-            {/* Notas */}
-            <Textarea
-              label="Notas (opcional)"
-              placeholder="Ej. Especialista en terapia cognitiva"
-              rows={4}
-              value={specialistForm.notes}
-              onChange={(event) =>
-                setSpecialistForm((current) => ({
-                  ...current,
-                  notes: event.target.value,
-                }))
-              }
-            />
-
-            {!userId ? (
-              <Checkbox
-                label="Registrar usuario"
-                checked={createUser}
-                onChange={(event) => setCreateUser(event.currentTarget.checked)}
-              />
-            ) : (
-              <Text c="dimmed" size="sm">
-                Este especialista ya tiene un usuario registrado
-              </Text>
-            )}
-
-            {/* Botones de acción */}
-            <Group justify="flex-end" mt="lg">
-              <Button variant="default" onClick={onCancel}>
-                Cancelar
-              </Button>
-              <Button type="submit" loading={saving}>
-                {saving ? "Guardando..." : "Guardar especialista"}
-              </Button>
-            </Group>
-          </Stack>
-        </form>
+          </Tabs.Panel>
+        </Tabs>
       </Paper>
 
       {/* Toast de éxito */}

@@ -1,4 +1,9 @@
-import { useEffect, useState, type FormEvent } from "react";
+import {
+  GENDER_OPTIONS,
+  DOCUMENT_TYPES,
+  EMAIL_REGEX,
+  PATIENT_STATUS_STYLES,
+} from "../../util/constants";
 import {
   Container,
   Paper,
@@ -15,8 +20,10 @@ import {
   Tabs,
   Text,
   Input,
+  SimpleGrid,
+  Badge,
 } from "@mantine/core";
-import { IconPlus, IconTrash } from "@tabler/icons-react";
+import { IconPlus, IconTrash, IconUserShield } from "@tabler/icons-react";
 import Snackbar from "@mui/material/Snackbar";
 import MUIAlert from "@mui/material/Alert";
 import { patientService } from "../../services/patientService";
@@ -28,22 +35,8 @@ import { specialistService } from "../../services/specialistService";
 import type { Specialist } from "../../data/http/specialistsApi";
 import { PatientClinicalRecord } from "./PatientClinicalRecord";
 import { PhoneInput } from "../../components/PhoneInput";
-
-const DOCUMENT_TYPES = [
-  { value: "DNI", label: "DNI" },
-  { value: "PASAPORTE", label: "Pasaporte" },
-  { value: "CE", label: "Carné de extranjería" },
-  { value: "OTRO", label: "Otro" },
-];
-
-const administrativeFields = [
-  { key: "addressLine", label: "Dirección", maxLength: 255 },
-  {
-    key: "genderIdentity",
-    label: "Identidad de género (opcional)",
-    maxLength: 100,
-  },
-] as const;
+import { useEffect, useState, type FormEvent } from "react";
+import { ChangeStatusModal } from "./ChangeStatusModal";
 
 type PatientEditFormProps = {
   editingPatientId: string | null;
@@ -57,8 +50,11 @@ export function PatientEditForm({
   onSaveSuccess,
 }: PatientEditFormProps) {
   const [error, setError] = useState("");
+  const [showValidationErrors, setShowValidationErrors] = useState(false); // Para disparar los errores en los inputs
   const [saving, setSaving] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [isPhoneValid, setIsPhoneValid] = useState(false);
+  const [isChangeStatusModalOpen, setIsChangeStatusModalOpen] = useState(false);
   const [patientForm, setPatientForm] = useState({
     firstName: "",
     lastName: "",
@@ -67,12 +63,19 @@ export function PatientEditForm({
     birthdate: "",
     notes: "",
     specialistId: "",
-    documentType: "",
+    documentType: null as string | null,
     documentNumber: "",
     preferredName: "",
     addressLine: "",
     preferredLanguage: "",
-    genderIdentity: "",
+    genderIdentity: null as string | null,
+    status: null as string | null,
+  });
+  const [activePatientForStatus, setActivePatientForStatus] = useState({
+    id: null as string | null,
+    status: null as string | null,
+    firstName: "",
+    lastName: "",
   });
   const [emergencyContacts, setEmergencyContacts] = useState<
     GetEmergencyContact[]
@@ -128,6 +131,30 @@ export function PatientEditForm({
     event.preventDefault();
     setError("");
 
+    const isEmailValid = EMAIL_REGEX.test(patientForm.email);
+    const isFormValid =
+      patientForm.email.trim() !== "" &&
+      isEmailValid &&
+      isPhoneValid &&
+      patientForm.firstName.trim() !== "" &&
+      patientForm.lastName.trim() !== "";
+
+    const hasInvalidEmergencyContacts = emergencyContacts.some(
+      (contact) =>
+        !contact.isPhoneValid ||
+        contact.relationship.trim() === "" ||
+        contact.firstName.trim() === "" ||
+        contact.lastName.trim() === "",
+    );
+
+    if (!isFormValid || hasInvalidEmergencyContacts) {
+      setShowValidationErrors(true);
+      setError(
+        "Por favor, corrige los campos marcados en rojo antes de continuar.",
+      );
+      return;
+    }
+
     const request: CreatePatientRequest = {
       ...patientForm,
       specialistId: canAssignSpecialist
@@ -165,6 +192,16 @@ export function PatientEditForm({
     }
   }
 
+  function handleOpenChangeStatusModal() {
+    setIsChangeStatusModalOpen(true);
+    setActivePatientForStatus({
+      id: editingPatientId,
+      firstName: patientForm.firstName,
+      lastName: patientForm.lastName,
+      status: patientForm.status,
+    });
+  }
+
   useEffect(() => {
     if (!editingPatientId) return;
 
@@ -184,12 +221,13 @@ export function PatientEditForm({
           birthdate: fullPatient.birthdate ?? "",
           notes: fullPatient.notes ?? "",
           specialistId: fullPatient.specialist?.id ?? "",
-          documentType: fullPatient.documentType ?? "",
+          documentType: fullPatient.documentType ?? null,
           documentNumber: fullPatient.documentNumber ?? "",
           preferredName: fullPatient.preferredName ?? "",
           addressLine: fullPatient.addressLine ?? "",
           preferredLanguage: fullPatient.preferredLanguage ?? "",
-          genderIdentity: fullPatient.genderIdentity ?? "",
+          genderIdentity: fullPatient.genderIdentity ?? null,
+          status: fullPatient.status ?? "",
         });
         setEmergencyContacts(emergencyContacts ?? []);
       } catch (requestError) {
@@ -202,17 +240,72 @@ export function PatientEditForm({
     })();
   }, [editingPatientId, canAssignSpecialist]);
 
+  async function handleQuickStatusChange(patientId: string, newStatus: string) {
+    try {
+      const fullPatient = await patientService.updateStatus(
+        patientId,
+        newStatus,
+      );
+      setPatientForm((prev) => ({
+        ...prev,
+        status: fullPatient.status ?? "",
+      }));
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "No se pudo cargar el paciente",
+      );
+    }
+  }
+
   return (
     <Container size="lg" py="xl">
       <Paper shadow="sm" p="lg" radius="md" mb="lg">
         {/* Header con título y botón Nueva Cita */}
-        <Group justify="space-between" mb="lg">
-          <Title order={2}>
-            {editingPatientId ? "Editar Paciente" : "Nuevo Paciente"}
-          </Title>
-          <Button variant="default" onClick={onCancel} disabled={saving}>
-            Volver a pacientes
-          </Button>
+        <Group justify="space-between" align="center" mb="lg">
+          {/* Lado izquierdo: Título y (opcionalmente) el estado actual si estás editando */}
+          <Group gap="md" align="center">
+            {editingPatientId ? (
+              <>
+                <Title order={2} style={{ margin: 0 }}>
+                  {patientForm.firstName} {patientForm.lastName}
+                </Title>
+                <Badge
+                  variant="light"
+                  size="sm"
+                  color={
+                    PATIENT_STATUS_STYLES[patientForm.status ?? ""]?.color ||
+                    "gray"
+                  }
+                >
+                  {PATIENT_STATUS_STYLES[patientForm.status ?? ""]?.label ||
+                    patientForm.status}
+                </Badge>
+              </>
+            ) : (
+              <Title order={2} style={{ margin: 0 }}>
+                {"Nuevo Paciente"}
+              </Title>
+            )}
+          </Group>
+
+          <Group gap="md" align="center">
+            {/* El selector de  estado solo se muestra si estamos en modo Edición */}
+            {editingPatientId && (
+              <Button
+                size="xs"
+                variant="light"
+                onClick={handleOpenChangeStatusModal}
+              >
+                Cambiar estado
+              </Button>
+            )}
+            {/* Lado derecho: Botón de cancelar / volver */}
+            <Button variant="default" onClick={onCancel} disabled={saving}>
+              Volver a pacientes
+            </Button>
+          </Group>
         </Group>
 
         <Tabs defaultValue="general" keepMounted={false}>
@@ -236,7 +329,7 @@ export function PatientEditForm({
             </Text>
           )}
           <Tabs.Panel value="general" pt="md">
-            <form onSubmit={handlePatientSubmit}>
+            <form onSubmit={handlePatientSubmit} noValidate>
               <Stack gap="md">
                 {/* Error Alert */}
                 {error && (
@@ -253,12 +346,18 @@ export function PatientEditForm({
                       label="Nombre"
                       placeholder="Ej. Ana"
                       required
+                      maxLength={100}
                       value={patientForm.firstName}
                       onChange={(event) =>
                         setPatientForm((current) => ({
                           ...current,
                           firstName: event.target.value,
                         }))
+                      }
+                      error={
+                        showValidationErrors && !patientForm.firstName.trim()
+                          ? "El nombre es obligatorio"
+                          : undefined
                       }
                     />
                   </Grid.Col>
@@ -268,12 +367,18 @@ export function PatientEditForm({
                       label="Apellido"
                       placeholder="Ej. García"
                       required
+                      maxLength={100}
                       value={patientForm.lastName}
                       onChange={(event) =>
                         setPatientForm((current) => ({
                           ...current,
                           lastName: event.target.value,
                         }))
+                      }
+                      error={
+                        showValidationErrors && !patientForm.lastName.trim()
+                          ? "El apellido es obligatorio"
+                          : undefined
                       }
                     />
                   </Grid.Col>
@@ -282,6 +387,7 @@ export function PatientEditForm({
                       className="text-field"
                       label="Correo electrónico"
                       type="email"
+                      maxLength={100}
                       required
                       placeholder="ana@correo.com"
                       value={patientForm.email}
@@ -291,6 +397,14 @@ export function PatientEditForm({
                           email: event.target.value,
                         }))
                       }
+                      error={
+                        showValidationErrors && !patientForm.email
+                          ? "El email es obligatorio"
+                          : showValidationErrors &&
+                              !EMAIL_REGEX.test(patientForm.email)
+                            ? "Ingresa un correo electrónico válido"
+                            : undefined
+                      }
                     />
                   </Grid.Col>
                   <Grid.Col span={{ base: 12, sm: 6 }}>
@@ -298,12 +412,13 @@ export function PatientEditForm({
                       label="Teléfono/Celular de contacto"
                       required
                       value={patientForm.phoneNumber}
-                      onChange={(fullPhone) =>
+                      onChange={(fullPhone, isValid) => {
+                        setIsPhoneValid(isValid);
                         setPatientForm((current) => ({
                           ...current,
                           phoneNumber: fullPhone,
-                        }))
-                      }
+                        }));
+                      }}
                     />
                   </Grid.Col>
                   <Grid.Col span={{ base: 12, sm: 6 }}>
@@ -330,7 +445,7 @@ export function PatientEditForm({
                           onChange={(value) =>
                             setPatientForm((current) => ({
                               ...current,
-                              documentType: value || "",
+                              documentType: value || null,
                             }))
                           }
                           allowDeselect={false}
@@ -363,22 +478,34 @@ export function PatientEditForm({
                 </Grid>
 
                 <Grid>
-                  {administrativeFields.map(({ key, label, maxLength }) => (
-                    <Grid.Col key={key} span={{ base: 12, sm: 6 }}>
-                      <TextInput
-                        className="text-field"
-                        label={label}
-                        maxLength={maxLength}
-                        value={patientForm[key]}
-                        onChange={(event) =>
-                          setPatientForm((current) => ({
-                            ...current,
-                            [key]: event.target.value,
-                          }))
-                        }
-                      />
-                    </Grid.Col>
-                  ))}
+                  <Grid.Col key="addressLine" span={{ base: 12, sm: 6 }}>
+                    <TextInput
+                      className="text-field"
+                      label="Dirección"
+                      maxLength={255}
+                      value={patientForm.addressLine}
+                      onChange={(event) =>
+                        setPatientForm((current) => ({
+                          ...current,
+                          addressLine: event.target.value,
+                        }))
+                      }
+                    />
+                  </Grid.Col>
+                  <Grid.Col key="genderIdentity" span={{ base: 12, sm: 6 }}>
+                    <Select
+                      className="text-field"
+                      label="Género"
+                      value={patientForm.genderIdentity}
+                      onChange={(value) =>
+                        setPatientForm((current) => ({
+                          ...current,
+                          genderIdentity: value || null,
+                        }))
+                      }
+                      data={GENDER_OPTIONS}
+                    />
+                  </Grid.Col>
                 </Grid>
 
                 {/* Especislita asignado */}
@@ -406,6 +533,7 @@ export function PatientEditForm({
                   label="Notas administrativas"
                   placeholder="No incluir contenido clínico; utiliza Anamnesis o Evolución"
                   rows={4}
+                  maxLength={500}
                   value={patientForm.notes}
                   onChange={(event) =>
                     setPatientForm((current) => ({
@@ -431,6 +559,7 @@ export function PatientEditForm({
                             lastName: "",
                             phoneNumber: "",
                             relationship: "",
+                            isPhoneValid: false,
                           },
                         ])
                       }
@@ -439,84 +568,135 @@ export function PatientEditForm({
                     </Button>
                   </Group>
                   {emergencyContacts.map((contact, index) => (
-                    <Group key={index} align="flex-end" wrap="nowrap">
-                      <TextInput
-                        className="text-field"
-                        label="Nombre"
-                        required
-                        style={{ flex: 1 }}
-                        value={contact.firstName}
-                        onChange={(event) =>
-                          updateContact(index, {
-                            firstName: event.target.value,
-                          })
-                        }
-                      />
-                      <TextInput
-                        className="text-field"
-                        label="Apellido"
-                        required
-                        style={{ flex: 1 }}
-                        value={contact.lastName}
-                        onChange={(event) =>
-                          updateContact(index, { lastName: event.target.value })
-                        }
-                      />
-                      <TextInput
-                        className="text-field"
-                        label="Celular"
-                        type="tel"
-                        required
-                        style={{ flex: 1 }}
-                        value={contact.phoneNumber}
-                        onChange={(event) =>
-                          updateContact(index, {
-                            phoneNumber: event.target.value,
-                          })
-                        }
-                      />
-                      <Select
-                        label="Relación"
-                        data={[
-                          "PADRE",
-                          "MADRE",
-                          "HERMANO",
-                          "HERMANA",
-                          "HIJO",
-                          "HIJA",
-                          "ESPOSO",
-                          "ESPOSA",
-                          "AMIGO",
-                          "AMIGA",
-                          "SOBRINO",
-                          "SOBRINA",
-                          "TIO",
-                          "TIA",
-                          "PRIMA",
-                          "PRIMO",
-                          "OTRO",
-                        ]}
-                        required
-                        style={{ flex: 1 }}
-                        value={contact.relationship}
-                        onChange={(value) =>
-                          updateContact(index, { relationship: value ?? "" })
-                        }
-                      />
-                      <ActionIcon
-                        variant="subtle"
-                        color="red"
-                        size="lg"
-                        aria-label="Quitar contacto"
-                        onClick={() =>
-                          setEmergencyContacts((current) =>
-                            current.filter((_, i) => i !== index),
-                          )
-                        }
-                      >
-                        <IconTrash size={18} />
-                      </ActionIcon>
-                    </Group>
+                    <Paper
+                      key={index}
+                      withBorder
+                      p="md"
+                      radius="md"
+                      mb="md"
+                      style={{ backgroundColor: "var(--mantine-color-gray-0)" }}
+                    >
+                      <Group justify="space-between" mb="sm">
+                        <Group gap="xs">
+                          <IconUserShield
+                            size={18}
+                            color="var(--mantine-color-blue-6)"
+                          />
+                          <Text size="sm" fw={600} c="dimmed">
+                            Contacto de emergencia #{index + 1}
+                          </Text>
+                        </Group>
+
+                        <ActionIcon
+                          variant="subtle"
+                          color="red"
+                          size="lg"
+                          aria-label="Quitar contacto"
+                          onClick={() =>
+                            setEmergencyContacts((current) =>
+                              current.filter((_, i) => i !== index),
+                            )
+                          }
+                        >
+                          <IconTrash size={18} />
+                        </ActionIcon>
+                      </Group>
+                      <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
+                        <TextInput
+                          className="text-field"
+                          label="Nombre"
+                          required
+                          maxLength={100}
+                          style={{ minWidth: "150px", flex: 1 }}
+                          value={contact.firstName}
+                          onChange={(event) =>
+                            updateContact(index, {
+                              firstName: event.target.value,
+                            })
+                          }
+                          error={
+                            showValidationErrors &&
+                            contact.firstName.trim() === ""
+                              ? "El nombre es obligatorio"
+                              : undefined
+                          }
+                        />
+                        <TextInput
+                          className="text-field"
+                          label="Apellido"
+                          required
+                          maxLength={100}
+                          style={{ minWidth: "150px", flex: 1 }}
+                          value={contact.lastName}
+                          onChange={(event) =>
+                            updateContact(index, {
+                              lastName: event.target.value,
+                            })
+                          }
+                          error={
+                            showValidationErrors &&
+                            contact.lastName.trim() === ""
+                              ? "El apellido es obligatorio"
+                              : undefined
+                          }
+                        />
+                        <Select
+                          label="Relación"
+                          data={[
+                            "PADRE",
+                            "MADRE",
+                            "HERMANO",
+                            "HERMANA",
+                            "HIJO",
+                            "HIJA",
+                            "ESPOSO",
+                            "ESPOSA",
+                            "AMIGO",
+                            "AMIGA",
+                            "SOBRINO",
+                            "SOBRINA",
+                            "TIO",
+                            "TIA",
+                            "PRIMA",
+                            "PRIMO",
+                            "OTRO",
+                          ]}
+                          required
+                          style={{ flex: 1 }}
+                          value={contact.relationship}
+                          onChange={(value) =>
+                            updateContact(index, { relationship: value ?? "" })
+                          }
+                          error={
+                            showValidationErrors &&
+                            contact.relationship.trim() === ""
+                              ? "La relación es requerida"
+                              : undefined
+                          }
+                        />
+                        <div
+                          style={{ gridColumn: "span 2", maxWidth: "420px" }}
+                        >
+                          <PhoneInput
+                            className="text-field"
+                            label="Teléfono/Celular de contacto"
+                            required
+                            value={contact.phoneNumber}
+                            onChange={(fullPhone, isValid) => {
+                              updateContact(index, {
+                                phoneNumber: fullPhone,
+                                isPhoneValid: isValid,
+                              });
+                            }}
+                            error={
+                              showValidationErrors && !contact.isPhoneValid
+                                ? "El número de teléfono es inválido"
+                                : undefined
+                            }
+                          />
+                        </div>
+                      </SimpleGrid>
+                    </Paper>
                   ))}
                 </Stack>
 
@@ -567,6 +747,20 @@ export function PatientEditForm({
           Paciente registrado satisfactoriamente
         </MUIAlert>
       </Snackbar>
+      <ChangeStatusModal
+        open={isChangeStatusModalOpen}
+        patient={activePatientForStatus}
+        onClose={() => {
+          setActivePatientForStatus({
+            ...activePatientForStatus,
+            status: activePatientForStatus?.status ?? "",
+          });
+          setIsChangeStatusModalOpen(false);
+        }}
+        onConfirm={async (patientId, newStatus) => {
+          await handleQuickStatusChange(patientId, newStatus);
+        }}
+      />
     </Container>
   );
 }

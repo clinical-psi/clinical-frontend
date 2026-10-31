@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { ROLE_STYLES, ROLE_OPTIONS } from "../../util/constants";
 import {
   ActionIcon,
   Alert,
@@ -20,19 +21,6 @@ import type { CreateUser } from "../../types/create-user";
 import type { GetUser } from "../../types/get-user";
 
 const PAGE_SIZE = 10;
-
-const ROLE_OPTIONS = [
-  { value: "ADMIN", label: "Administrador" },
-  { value: "TENANT_ADMIN", label: "Admin. de clínica" },
-  { value: "SPECIALIST", label: "Especialista" },
-  { value: "USER", label: "Usuario" },
-];
-
-const ROLE_STYLES: Record<string, { label: string; color: string }> = {
-  ADMIN: { label: "Administrador", color: "red" },
-  TENANT_ADMIN: { label: "Admin. de clínica", color: "orange" },
-  SPECIALIST: { label: "Especialista", color: "teal" },
-};
 
 function RoleBadges({ roles }: { roles?: { roleName: string }[] }) {
   if (!roles || roles.length === 0) {

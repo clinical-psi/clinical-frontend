@@ -1177,7 +1177,6 @@ tbody tr:hover {
   background: #ffffff;
 }
 
-/* Forzar color de placeholder en todos los navegadores */
 .text-field input::placeholder,
 .text-field textarea::placeholder {
   color: #adb5bd !important; /* Cambia este tono por el más claro que desees (ej: gray-4 o gray-3) */

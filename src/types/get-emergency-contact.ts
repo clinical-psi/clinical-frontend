@@ -4,4 +4,5 @@ export type GetEmergencyContact = {
   firstName: string;
   lastName: string;
   relationship: string;
+  isPhoneValid: boolean;
 };

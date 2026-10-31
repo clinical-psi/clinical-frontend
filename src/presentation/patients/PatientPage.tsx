@@ -13,11 +13,13 @@ import {
   Container,
   Loader,
   Alert,
+  Badge,
 } from "@mantine/core";
 import { IconEdit, IconTrash } from "@tabler/icons-react";
 import { patientService } from "../../services/patientService";
 import type { GetPatient } from "../../types/get-patient";
 import { PatientEditForm } from "./PatientEditForm";
+import { PATIENT_STATUS_STYLES } from "../../util/constants";
 
 export function PatientPage() {
   const { roleNames, can } = useRoles();
@@ -101,7 +103,7 @@ export function PatientPage() {
             setEditingPatientId(null);
             const refreshPage = async () => {
               const result = await patientService.getAll(
-        roleNames,
+                roleNames,
                 patientNameFilter,
                 patientPage - 1,
                 patientPageSize,
@@ -117,7 +119,7 @@ export function PatientPage() {
             setEditingPatientId(null);
             const refreshPage = async () => {
               const result = await patientService.getAll(
-        roleNames,
+                roleNames,
                 patientNameFilter,
                 patientPage - 1,
                 patientPageSize,
@@ -159,31 +161,10 @@ export function PatientPage() {
       )}
 
       <Stack gap="md">
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            setPatientPage(1);
-            setPatientNameFilter(search.trim());
-          }}
-        >
-          <Group>
-            <TextInput
-              type="search"
-              name="search_query_patients"
-              autoComplete="off"
-              placeholder="Buscar por nombres, apellidos o email"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{ flex: 1 }}
-            />
-            <Button type="submit" variant="default">
-              Buscar
-            </Button>
-          </Group>
-        </form>
-
         {loading ? (
-          <Loader />
+          <Group justify="center" mt="xl">
+            <Loader />
+          </Group>
         ) : getFilteredPatients().length === 0 ? (
           <Alert title="Sin resultados">
             {patientNameFilter
@@ -192,13 +173,35 @@ export function PatientPage() {
           </Alert>
         ) : (
           <>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                setPatientPage(1);
+                setPatientNameFilter(search.trim());
+              }}
+            >
+              <Group>
+                <TextInput
+                  type="search"
+                  name="search_query_patients"
+                  autoComplete="off"
+                  placeholder="Buscar por nombres, apellidos o email"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  style={{ flex: 1 }}
+                />
+                <Button type="submit" variant="default">
+                  Buscar
+                </Button>
+              </Group>
+            </form>
             <Table striped highlightOnHover>
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th>Paciente</Table.Th>
                   <Table.Th>Correo</Table.Th>
                   <Table.Th>Celular</Table.Th>
-                  <Table.Th>Fecha de nacimiento</Table.Th>
+                  <Table.Th></Table.Th>
                   <Table.Th w={120}>Acciones</Table.Th>
                 </Table.Tr>
               </Table.Thead>
@@ -212,7 +215,19 @@ export function PatientPage() {
                     </Table.Td>
                     <Table.Td>{patient.email || "—"}</Table.Td>
                     <Table.Td>{patient.phoneNumber || "—"}</Table.Td>
-                    <Table.Td>{patient.birthdate || "—"}</Table.Td>
+                    <Table.Td>
+                      <Badge
+                        key={PATIENT_STATUS_STYLES[patient.status]?.label}
+                        variant="light"
+                        size="sm"
+                        color={
+                          PATIENT_STATUS_STYLES[patient.status]?.color ?? "gray"
+                        }
+                      >
+                        {PATIENT_STATUS_STYLES[patient.status]?.label ??
+                          "Desconocido"}
+                      </Badge>
+                    </Table.Td>
                     <Table.Td>
                       <Group gap="xs">
                         <ActionIcon

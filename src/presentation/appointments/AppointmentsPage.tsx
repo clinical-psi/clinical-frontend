@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useState, type FormEvent, type KeyboardEvent } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
@@ -38,6 +38,7 @@ import { appointmentService } from "../../services/appointmentService";
 import { AppointmentViewModal } from "../../presentation/appointments/AppointmentViewModal";
 import { CreateAppointmentModal } from "../../presentation/appointments/CreateAppointmentModal";
 import { getNextAvailableHourOfDay } from "../../util/utils";
+import { useOnceEffect } from "../../hooks/useOnceEffect";
 
 export function AppointmentsPage() {
   return (
@@ -212,7 +213,7 @@ function AppointmentsCalendar() {
   const [showToast, setShowToast] = useState(false);
 
   // Load specialists and locations on mount
-  useEffect(() => {
+  useOnceEffect(() => {
     Promise.all([
       specialistService.getAll().catch((err: Error) => {
         setError(err.message);
@@ -244,7 +245,7 @@ function AppointmentsCalendar() {
   }
 
   // Load appointments when date range or filters change
-  useEffect(() => {
+  useOnceEffect(() => {
     if (!calendarDateRange) {
       setEvents([]);
       return;

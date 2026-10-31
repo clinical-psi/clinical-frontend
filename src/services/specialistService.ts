@@ -15,6 +15,10 @@ export const specialistService = {
     return specialistsApi.list();
   },
 
+  async deactivate(specialistId: string): Promise<void> {
+    return specialistsApi.deactivate(specialistId);
+  },
+
   async update(
     specialistId: string,
     specialist: CreateSpecialistRequest,
