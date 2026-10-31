@@ -30,7 +30,7 @@ export const specialistsApi = {
   },
 
   deactivate: async (specialistId: string) => {
-    return del(`/specialists/${specialistId}/deactivate`, {});
+    return del(`/specialists/${specialistId}/deactivate`);
   },
 
   uploadPhoto: async (specialistId: string, file: File): Promise<void> => {

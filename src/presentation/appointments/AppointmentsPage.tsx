@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useState, type FormEvent, type KeyboardEvent } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
@@ -227,7 +227,7 @@ function AppointmentsCalendar() {
       setSpecialists(specs);
       setLocations(locs);
     });
-  }, []);
+  });
 
   function transformAppointments(appointments: Appointment[]) {
     const calendarEvents = appointments.map((apt) => ({
@@ -245,7 +245,7 @@ function AppointmentsCalendar() {
   }
 
   // Load appointments when date range or filters change
-  useOnceEffect(() => {
+  useEffect(() => {
     if (!calendarDateRange) {
       setEvents([]);
       return;

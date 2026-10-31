@@ -10,7 +10,7 @@ import {
   Button,
   TextInput,
 } from "@mantine/core";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { patientService } from "../../services/patientService";
 import { useRoles } from "../../hooks/useRoles";
 import type { GetPatient } from "../../types/get-patient";
@@ -19,7 +19,6 @@ import { TagInput } from "./AppointmentsPage";
 import type { Specialist } from "../../data/http/specialistsApi";
 import type { Location } from "../../data/http/locationsApi";
 import type { FormEvent } from "react";
-import { useOnceEffect } from "../../hooks/useOnceEffect";
 
 export function CreateAppointmentModal({
   open,
@@ -47,7 +46,7 @@ export function CreateAppointmentModal({
   const [patientResults, setPatientResults] = useState<GetPatient[]>([]);
 
   // Debounce de la busqueda de pacientes
-  useOnceEffect(() => {
+  useEffect(() => {
     const q = patientQuery.trim();
     if (!open || q.length < 2) {
       setPatientResults([]);
