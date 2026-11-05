@@ -1,6 +1,12 @@
 import { ROLES, type RoleName } from "./roles";
+import type { FeatureFlag } from "./features";
 
-export type MenuItemId = "patients" | "specialists" | "appointments" | "settings";
+export type MenuItemId =
+  | "patients"
+  | "specialists"
+  | "appointments"
+  | "availability"
+  | "settings";
 
 export type MenuItem = {
   id: MenuItemId;
@@ -8,6 +14,8 @@ export type MenuItem = {
   icon: string;
   /** Roles que ven el menú. Vacío = todos los usuarios autenticados. */
   roles: RoleName[];
+  /** Si se define, el menú solo aparece con el flag habilitado. */
+  feature?: FeatureFlag;
 };
 
 const ADMINS: RoleName[] = [ROLES.ADMIN, ROLES.TENANT_ADMIN];
@@ -21,7 +29,20 @@ export const MENU_ITEMS: MenuItem[] = [
     roles: [...STAFF, ROLES.SPECIALIST],
   },
   { id: "specialists", label: "Especialistas", icon: "E", roles: STAFF },
-  { id: "appointments", label: "Citas", icon: "C", roles: STAFF },
+  {
+    id: "appointments",
+    label: "Citas",
+    icon: "C",
+    roles: [],
+    feature: "scheduling",
+  },
+  {
+    id: "availability",
+    label: "Mi disponibilidad",
+    icon: "D",
+    roles: [],
+    feature: "scheduling",
+  },
   { id: "settings", label: "Configuración", icon: "⚙", roles: STAFF },
 ];
 
@@ -33,6 +54,8 @@ export const PERMISSIONS = {
   "patients.deactivate": STAFF,
   "patients.assignSpecialist": STAFF,
   "settings.users": ADMINS,
+  "availability.manage": ADMINS,
+  "availability.view": [...ADMINS, ROLES.SPECIALIST],
   "settings.changePassword": [...STAFF, ROLES.SPECIALIST],
 } satisfies Record<string, RoleName[]>;
 

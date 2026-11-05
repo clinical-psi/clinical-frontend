@@ -2,10 +2,12 @@ import { useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 import type { LoginCredentials } from "../types/auth";
 import { ForgotPasswordPage } from "./ForgotPasswordPage";
+import { HttpError } from "../data/http/httpClient";
 import "./LoginPage.css";
 
 export function LoginPage() {
-  const { login, loading } = useAuth();
+  const { login } = useAuth();
+  const [loading, setLoading] = useState(false);
   const [credentials, setCredentials] = useState<LoginCredentials>({
     email: "",
     password: "",
@@ -31,10 +33,17 @@ export function LoginPage() {
       return;
     }
 
+    setLoading(true);
     try {
       await login(credentials);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al iniciar sesión");
+      setError(
+        err instanceof HttpError && (err.status === 401 || err.status === 403)
+          ? "Credenciales incorrectas. Verifica tu correo y contraseña."
+          : err instanceof Error ? err.message : "Error al iniciar sesión",
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -75,7 +84,7 @@ export function LoginPage() {
             />
           </div>
 
-          {error && <div className="error-message">{error}</div>}
+          {error && <div className="error-message" role="alert">{error}</div>}
 
           <button type="submit" disabled={loading} className="login-button">
             {loading ? "Iniciando sesión..." : "Iniciar Sesión"}

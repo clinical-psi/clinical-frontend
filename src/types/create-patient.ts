@@ -31,7 +31,7 @@ export type CreatePatientRequest = {
   firstName: string;
   lastName: string;
   email?: string;
-  birthdate?: string;
+  birthdate?: string | null;
   notes?: string;
   phoneNumber?: string;
   appointmentPlans?: Array<{

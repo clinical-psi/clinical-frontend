@@ -7,18 +7,17 @@ import {
 
 export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export const ROLE_OPTIONS = [
-  { value: "ADMIN", label: "Administrador" },
-  { value: "TENANT_ADMIN", label: "Admin. de clínica" },
-  { value: "SPECIALIST", label: "Especialista" },
-  { value: "USER", label: "Usuario" },
-];
+export const ROLES_CONFIG = [
+  { value: "ADMIN", label: "Administrador", color: "red" },
+  { value: "TENANT_ADMIN", label: "Admin. de clínica", color: "orange" },
+  { value: "SPECIALIST", label: "Especialista", color: "teal" },
+  { value: "USER", label: "Usuario", color: "gray" },
+] as const;
 
-export const ROLE_STYLES: Record<string, { label: string; color: string }> = {
-  ADMIN: { label: "Administrador", color: "red" },
-  TENANT_ADMIN: { label: "Admin. de clínica", color: "orange" },
-  SPECIALIST: { label: "Especialista", color: "teal" },
-};
+export const ROLE_OPTIONS = ROLES_CONFIG.map(({ value, label }) => ({
+  value,
+  label,
+}));
 
 export const PATIENT_STATUS_STYLES: Record<
   string,
@@ -57,6 +56,13 @@ const TRANSITION_RULES: Record<
   // Si está Activo o En espera, puede pasar a los estados de cierre/pausa
   ACTIVE_OR_WAITING: [
     {
+      id: "ACTIVE",
+      label: "Activo",
+      description: "El paciente está actualmente activo en el tratamiento.",
+      color: "green",
+      icon: IconUserCheck,
+    },
+    {
       id: "COMPLETED",
       label: "Alta",
       description: "Se completó su tratamiento exitosamente.",
@@ -91,3 +97,31 @@ const TRANSITION_RULES: Record<
   ],
 };
 export { TRANSITION_RULES };
+
+// Definición de las opciones con sus descripciones
+const ROLES_TRANSITION_RULES: Record<
+  string,
+  Array<{
+    id: string;
+    label: string;
+  }>
+> = {
+  SPECIALIST: [
+    {
+      id: "TENANT_ADMIN",
+      label: "Admin. de Clínica",
+    },
+    {
+      id: "SPECIALIST",
+      label: "Especialista",
+    },
+  ],
+  // Si ya está en pausa, abandonó o tiene alta, solo puede volver a "En espera"
+  TENANT_ADMIN: [
+    {
+      id: "SPECIALIST",
+      label: "Especialista",
+    },
+  ],
+};
+export { ROLES_TRANSITION_RULES };

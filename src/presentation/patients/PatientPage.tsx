@@ -195,66 +195,69 @@ export function PatientPage() {
                 </Button>
               </Group>
             </form>
-            <Table striped highlightOnHover>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Paciente</Table.Th>
-                  <Table.Th>Correo</Table.Th>
-                  <Table.Th>Celular</Table.Th>
-                  <Table.Th></Table.Th>
-                  <Table.Th w={120}>Acciones</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {getFilteredPatients().map((patient) => (
-                  <Table.Tr key={patient.id ?? patient.patientId}>
-                    <Table.Td>
-                      <strong>
-                        {patient.firstName} {patient.lastName}
-                      </strong>
-                    </Table.Td>
-                    <Table.Td>{patient.email || "—"}</Table.Td>
-                    <Table.Td>{patient.phoneNumber || "—"}</Table.Td>
-                    <Table.Td>
-                      <Badge
-                        key={PATIENT_STATUS_STYLES[patient.status]?.label}
-                        variant="light"
-                        size="sm"
-                        color={
-                          PATIENT_STATUS_STYLES[patient.status]?.color ?? "gray"
-                        }
-                      >
-                        {PATIENT_STATUS_STYLES[patient.status]?.label ??
-                          "Desconocido"}
-                      </Badge>
-                    </Table.Td>
-                    <Table.Td>
-                      <Group gap="xs">
-                        <ActionIcon
+            <Table.ScrollContainer minWidth={700}>
+              <Table striped highlightOnHover verticalSpacing="sm">
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Paciente</Table.Th>
+                    <Table.Th>Correo</Table.Th>
+                    <Table.Th>Celular</Table.Th>
+                    <Table.Th></Table.Th>
+                    <Table.Th w={120}>Acciones</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {getFilteredPatients().map((patient) => (
+                    <Table.Tr key={patient.id ?? patient.patientId}>
+                      <Table.Td>
+                        <strong>
+                          {patient.firstName} {patient.lastName}
+                        </strong>
+                      </Table.Td>
+                      <Table.Td>{patient.email || "—"}</Table.Td>
+                      <Table.Td>{patient.phoneNumber || "—"}</Table.Td>
+                      <Table.Td>
+                        <Badge
+                          key={PATIENT_STATUS_STYLES[patient.status]?.label}
+                          variant="light"
                           size="sm"
-                          variant="default"
-                          onClick={() => handlePatientEdit(patient)}
-                          title="Editar paciente"
+                          color={
+                            PATIENT_STATUS_STYLES[patient.status]?.color ??
+                            "gray"
+                          }
                         >
-                          <IconEdit size={16} />
-                        </ActionIcon>
-                        {can("patients.deactivate") && (
+                          {PATIENT_STATUS_STYLES[patient.status]?.label ??
+                            "Desconocido"}
+                        </Badge>
+                      </Table.Td>
+                      <Table.Td>
+                        <Group gap="xs">
                           <ActionIcon
                             size="sm"
-                            color="red"
                             variant="default"
-                            onClick={() => handlePatientDeactivate(patient)}
-                            title="Dar de baja"
+                            onClick={() => handlePatientEdit(patient)}
+                            title="Editar paciente"
                           >
-                            <IconTrash size={16} />
+                            <IconEdit size={16} />
                           </ActionIcon>
-                        )}
-                      </Group>
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
+                          {can("patients.deactivate") && (
+                            <ActionIcon
+                              size="sm"
+                              color="red"
+                              variant="default"
+                              onClick={() => handlePatientDeactivate(patient)}
+                              title="Dar de baja"
+                            >
+                              <IconTrash size={16} />
+                            </ActionIcon>
+                          )}
+                        </Group>
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </Table.ScrollContainer>
 
             {totalPages > 1 && (
               <Group justify="center" mt="md">

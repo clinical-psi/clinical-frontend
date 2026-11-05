@@ -75,6 +75,18 @@ export default defineConfig([
 ```
 # clinical-frontend
 
+## Navegacion responsive
+
+- Desde 1024 px (64 em con tamano de fuente base de 16 px), la barra lateral
+  permanece visible y permite desplazamiento vertical en pantallas bajas.
+- En movil y tablet, una cabecera muestra la seccion actual y abre un drawer
+  lateral con las mismas opciones autorizadas y el cierre de sesion.
+- El drawer se cierra al elegir una seccion, pulsar Escape, tocar el fondo o
+  usar el boton de cierre. Al pasar a escritorio se descarta su estado abierto.
+- Mantine controla el foco y bloquea el desplazamiento del fondo. Los controles
+  principales tienen al menos 44 px de alto y foco visible.
+- El enlace "Saltar al contenido" permite evitar la navegacion con teclado.
+
 ## Historia clinica del paciente
 
 La pantalla de edicion separa **Datos generales**, **Anamnesis** y **Evolucion**.
@@ -102,5 +114,7 @@ La lista de citas permite cargar paginas adicionales.
 
 El formulario clinico no usa almacenamiento local para guardar su contenido.
 Los campos vacios significan "no registrado", no ausencia del antecedente.
-Un HTTP 403 muestra falta de permiso sin cerrar la sesion; un HTTP 401 en rutas
-protegidas activa el flujo existente de sesion expirada.
+Un HTTP 401 o 403 en rutas protegidas limpia la sesion y muestra el login.
+En el login, un HTTP 401 o 403 muestra "Credenciales incorrectas" sin reiniciar
+el formulario. Otros errores conservan su mensaje y no se interpretan como
+una contraseña incorrecta.

@@ -60,7 +60,7 @@ export function PatientEditForm({
     lastName: "",
     email: "",
     phoneNumber: "",
-    birthdate: "",
+    birthdate: null as string | null,
     notes: "",
     specialistId: "",
     documentType: null as string | null,
@@ -409,6 +409,7 @@ export function PatientEditForm({
                   </Grid.Col>
                   <Grid.Col span={{ base: 12, sm: 6 }}>
                     <PhoneInput
+                      className="text-field"
                       label="Teléfono/Celular de contacto"
                       required
                       value={patientForm.phoneNumber}
@@ -419,6 +420,11 @@ export function PatientEditForm({
                           phoneNumber: fullPhone,
                         }));
                       }}
+                      error={
+                        showValidationErrors && !patientForm.phoneNumber
+                          ? "El teléfono es obligatorio"
+                          : ""
+                      }
                     />
                   </Grid.Col>
                   <Grid.Col span={{ base: 12, sm: 6 }}>
@@ -426,7 +432,7 @@ export function PatientEditForm({
                       className="text-field"
                       label="Fecha de nacimiento"
                       type="date"
-                      value={patientForm.birthdate}
+                      value={patientForm.birthdate || ""}
                       onChange={(event) =>
                         setPatientForm((current) => ({
                           ...current,

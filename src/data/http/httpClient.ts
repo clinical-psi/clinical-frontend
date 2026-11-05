@@ -15,16 +15,34 @@ export class HttpError extends Error {
 async function assertOk(response: Response, path: string) {
   if (response.ok) return;
 
-  if (response.status === 401 && !path.startsWith("/auth/")) {
+  if ((response.status === 401 || response.status === 403) && !path.startsWith("/auth/")) {
     window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
   }
   let message = `La solicitud fallo con el estado ${response.status}`;
+  const detail = await readErrorDetail(response);
   if (response.status === 403) {
     message = "No tienes permiso para realizar esta operación.";
   } else if (response.status === 409) {
-    message = "El registro cambió en otra sesión. Recarga antes de guardar de nuevo.";
+    // El bloqueo optimista devuelve un mensaje técnico; las reglas de negocio, uno legible.
+    message =
+      detail && !/modified by another request/i.test(detail)
+        ? detail
+        : "El registro cambió en otra sesión. Recarga antes de guardar de nuevo.";
+  } else if ((response.status === 412 || response.status === 422) && detail) {
+    message = detail;
   }
   throw new HttpError(response.status, message);
+}
+
+async function readErrorDetail(response: Response): Promise<string | undefined> {
+  try {
+    const body = (await response.json()) as { detail?: unknown };
+    return typeof body.detail === "string" && body.detail.trim()
+      ? body.detail
+      : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function getAuthHeaders(): Record<string, string> {

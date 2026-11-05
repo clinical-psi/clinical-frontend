@@ -7,6 +7,7 @@ import { AppointmentsPage } from "./presentation/appointments/AppointmentsPage";
 import { PatientPage } from "./presentation/patients/PatientPage";
 import { SpecialistsPage } from "./presentation/specialists/SpecialistsPage";
 import { SettingsPage } from "./presentation/configuration/SettingsPage";
+import { MyAvailabilityPage } from "./presentation/availability/MyAvailabilityPage";
 import { useRoles } from "./hooks/useRoles";
 import type { MenuItemId } from "./config/permissions";
 
@@ -23,6 +24,7 @@ function AppContent() {
       {activeItem === "patients" && <PatientPage />}
       {activeItem === "specialists" && <SpecialistsPage />}
       {activeItem === "appointments" && <AppointmentsPage />}
+      {activeItem === "availability" && <MyAvailabilityPage />}
       {activeItem === "settings" && <SettingsPage />}
     </AppLayout>
   );

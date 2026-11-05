@@ -11,6 +11,10 @@
   color: #f1eee7;
   background: #2c3e50;
   box-sizing: border-box;
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  overflow-y: auto;
 }
 .brand {
   display: flex;
@@ -29,16 +33,17 @@
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.04em;
+  flex-shrink: 0;
 }
 .brand strong,
-.brand span:last-child {
+.brand div > span {
   display: block;
 }
 .brand strong {
   color: #f1eee7;
   font-size: 0.9rem;
 }
-.brand span:last-child {
+.brand div > span {
   margin-top: 2px;
   color: #8cb7d7;
   font-size: 0.72rem;
@@ -66,6 +71,7 @@
   border-radius: 6px;
   font-weight: 700;
   text-align: left;
+  min-height: 44px;
 }
 .nav-item:hover {
   color: #f1eee7;
@@ -73,11 +79,11 @@
 }
 .nav-item-active {
   color: #f1eee7;
-  background: #5d90bd;
+  background: #3d5f8f;
 }
 .nav-item-active:hover {
   color: #f1eee7;
-  background: #5d90bd;
+  background: #3d5f8f;
 }
 .nav-icon {
   display: grid;
@@ -87,6 +93,7 @@
   border: 1px solid currentColor;
   border-radius: 5px;
   font-size: 0.72rem;
+  flex-shrink: 0;
 }
 .sidebar-footer {
   margin-top: auto;
@@ -107,6 +114,7 @@
   color: #f1eee7;
   font-weight: 700;
   font-size: 0.85rem;
+  overflow-wrap: anywhere;
 }
 .user-email {
   margin: 0;
@@ -124,6 +132,7 @@
   font-size: 0.85rem;
   font-weight: 700;
   cursor: pointer;
+  min-height: 44px;
   transition:
     background 160ms ease,
     border-color 160ms ease;
@@ -140,6 +149,107 @@
 .content-area {
   min-width: 0;
   flex: 1;
+}
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 1000;
+  padding: 12px 16px;
+  color: var(--ink);
+  background: var(--surface);
+  border-radius: 6px;
+  transform: translateY(-150%);
+}
+.skip-link:focus {
+  transform: translateY(0);
+}
+.nav-item:focus-visible,
+.logout-button:focus-visible,
+.navigation-drawer-close:focus-visible {
+  outline: 3px solid #ebc88a;
+  outline-offset: 2px;
+}
+.mobile-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  padding: max(8px, env(safe-area-inset-top)) 16px 8px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.menu-toggle {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  padding: 0;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.menu-toggle:hover {
+  background: var(--accent-soft);
+}
+.menu-toggle:focus-visible {
+  outline: 3px solid var(--accent-dark);
+  outline-offset: 2px;
+}
+.mobile-header-title {
+  display: grid;
+  min-width: 0;
+}
+.mobile-header-title strong,
+.mobile-header-title span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mobile-header-title span {
+  color: var(--ink-secondary);
+  font-size: 0.8rem;
+}
+.navigation-drawer-content,
+.navigation-drawer-header {
+  color: #f1eee7;
+  background: #2c3e50;
+}
+.navigation-drawer-header {
+  padding: max(12px, env(safe-area-inset-top)) 16px 12px;
+}
+.navigation-drawer-close {
+  color: #f1eee7;
+  width: 44px;
+  height: 44px;
+}
+.navigation-drawer-close:hover {
+  background: rgba(93, 144, 189, 0.35);
+}
+.navigation-drawer-body {
+  display: flex;
+  flex-direction: column;
+}
+.mobile-navigation {
+  display: flex;
+  flex: 1;
+  min-height: calc(100dvh - 80px);
+  flex-direction: column;
+  gap: 24px;
+  padding: 16px 16px max(20px, env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+.mobile-navigation .brand {
+  padding: 0 10px;
+}
+@media (max-width: 63.99em) {
+  .app-layout {
+    display: block;
+  }
 }
 .app-shell {
   width: min(1120px, calc(100% - 40px));
@@ -446,6 +556,86 @@ textarea {
 }
 .fc .fc-event[data-color="occupied"] {
   opacity: 0.95;
+}
+
+/* Disponibilidad de especialistas (eventos de fondo) */
+.fc .fc-bg-event.fc-availability {
+  cursor: default;
+  font-weight: 500;
+}
+.fc .fc-bg-event.fc-availability-available {
+  background: #d3f9d8;
+  opacity: 0.55;
+}
+.fc .fc-bg-event.fc-availability-blocked {
+  background: repeating-linear-gradient(
+    135deg,
+    #ffe3e3,
+    #ffe3e3 6px,
+    #ffc9c9 6px,
+    #ffc9c9 12px
+  );
+  opacity: 0.75;
+}
+.fc .fc-bg-event.fc-availability .fc-event-title {
+  margin: 2px 4px;
+  font-size: 0.7rem;
+  font-style: normal;
+  color: var(--ink);
+}
+.fc .fc-event.fc-appointment-readonly {
+  cursor: default;
+}
+.availability-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid var(--line);
+}
+.availability-swatch-available {
+  background: #d3f9d8;
+}
+.availability-swatch-blocked {
+  background: repeating-linear-gradient(
+    135deg,
+    #ffe3e3,
+    #ffe3e3 3px,
+    #ffc9c9 3px,
+    #ffc9c9 6px
+  );
+}
+.availability-swatch-appointment {
+  background: var(--accent);
+}
+.availability-day[data-error="true"] {
+  border-color: var(--mantine-color-red-5);
+}
+.availability-exception-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.availability-exception {
+  border-left-width: 4px;
+}
+.availability-exception-blocked {
+  border-left-color: var(--mantine-color-red-5);
+}
+.availability-exception-extra {
+  border-left-color: var(--mantine-color-teal-5);
+}
+.availability-calendar {
+  min-width: 0;
+  overflow-x: auto;
+}
+@media (max-width: 40em) {
+  .availability-actions {
+    justify-content: stretch;
+  }
+  .availability-actions .mantine-Button-root {
+    flex: 1;
+  }
 }
 .status-message {
   padding: 20px;
@@ -1055,29 +1245,6 @@ tbody tr:hover {
 }
 
 @media (max-width: 640px) {
-  .app-layout {
-    display: block;
-  }
-  .sidebar {
-    width: 100%;
-    padding: 16px 14px 12px;
-  }
-  .brand {
-    padding: 0 4px 18px;
-  }
-  .sidebar-nav {
-    display: flex;
-    gap: 6px;
-    overflow-x: auto;
-  }
-  .nav-label,
-  .sidebar-footer {
-    display: none;
-  }
-  .nav-item {
-    flex: 1 0 auto;
-    justify-content: center;
-  }
   .app-shell {
     width: min(100% - 28px, 560px);
     padding-top: 32px;

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ROLE_STYLES, ROLE_OPTIONS } from "../../util/constants";
+import { ROLES_CONFIG } from "../../util/constants";
 import {
   ActionIcon,
   Alert,
@@ -8,9 +8,9 @@ import {
   Group,
   Loader,
   Modal,
-  MultiSelect,
   Pagination,
   Stack,
+  Switch,
   Table,
   Text,
   TextInput,
@@ -21,6 +21,20 @@ import type { CreateUser } from "../../types/create-user";
 import type { GetUser } from "../../types/get-user";
 
 const PAGE_SIZE = 10;
+const TENANT_ADMIN_ROLE = "TENANT_ADMIN";
+
+// Solo especialistas y usuarios (no administradores) pueden ganar o perder Admin. de clínica
+function canToggleTenantAdmin(roles: string[]) {
+  return (
+    !roles.includes("ADMIN") &&
+    (roles.includes("SPECIALIST") || roles.includes("USER"))
+  );
+}
+
+// Especialistas no se pueden editar por este medio
+function canEditProperties(roles: string[]) {
+  return !roles.includes("SPECIALIST");
+}
 
 function RoleBadges({ roles }: { roles?: { roleName: string }[] }) {
   if (!roles || roles.length === 0) {
@@ -33,15 +47,15 @@ function RoleBadges({ roles }: { roles?: { roleName: string }[] }) {
   return (
     <Group gap={4}>
       {roles.map((role) => {
-        const style = ROLE_STYLES[role.roleName];
+        const option = ROLES_CONFIG.find((o) => o.value === role.roleName);
         return (
           <Badge
             key={role.roleName}
             variant="light"
             size="sm"
-            color={style?.color ?? "gray"}
+            color={option?.color ?? "gray"}
           >
-            {style?.label ?? role.roleName}
+            {option?.label ?? role.roleName}
           </Badge>
         );
       })}
@@ -60,6 +74,7 @@ export function UsersPanel() {
 
   const [editing, setEditing] = useState<GetUser | null>(null);
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "" });
+  const [originalRoles, setOriginalRoles] = useState<string[]>([]);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [deactivating, setDeactivating] = useState<GetUser | null>(null);
@@ -113,14 +128,32 @@ export function UsersPanel() {
       lastName: user.lastName,
       email: user.email,
     });
-    setSelectedRoles((user.roles ?? []).map((role) => role.roleName));
+    const listedRoles = (user.roles ?? []).map((role) => role.roleName);
+    setOriginalRoles(listedRoles);
+    setSelectedRoles(listedRoles);
     userService
       .getById(user.userId)
-      .then((detail) =>
-        setSelectedRoles((detail.roles ?? []).map((role) => role.roleName)),
-      )
+      .then((detail) => {
+        const detailRoles = (detail.roles ?? []).map((role) => role.roleName);
+        setOriginalRoles(detailRoles);
+        setSelectedRoles(detailRoles);
+      })
       .catch(() => {});
   }
+
+  function toggleTenantAdmin(enabled: boolean) {
+    setSelectedRoles((roles) =>
+      enabled
+        ? [
+            ...roles.filter((role) => role !== TENANT_ADMIN_ROLE),
+            TENANT_ADMIN_ROLE,
+          ]
+        : roles.filter((role) => role !== TENANT_ADMIN_ROLE),
+    );
+  }
+
+  const tenantAdminEditable = canToggleTenantAdmin(originalRoles);
+  const specialistEditable = canEditProperties(originalRoles);
 
   async function handleSave() {
     if (!editing) return;
@@ -286,12 +319,14 @@ export function UsersPanel() {
           <TextInput
             label="Nombre"
             required
+            disabled={!specialistEditable}
             value={form.firstName}
             onChange={(e) => setForm({ ...form, firstName: e.target.value })}
           />
           <TextInput
             label="Apellido"
             required
+            disabled={!specialistEditable}
             value={form.lastName}
             onChange={(e) => setForm({ ...form, lastName: e.target.value })}
           />
@@ -299,17 +334,32 @@ export function UsersPanel() {
             label="Email"
             type="email"
             required
+            disabled={!specialistEditable}
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
           />
-          <MultiSelect
-            label="Roles"
-            required
-            data={ROLE_OPTIONS}
-            value={selectedRoles}
-            onChange={setSelectedRoles}
-            placeholder="Selecciona roles"
-          />
+          <Stack gap={6}>
+            <Text size="sm" fw={500}>
+              Roles
+            </Text>
+            <RoleBadges
+              roles={selectedRoles.map((roleName) => ({ roleName }))}
+            />
+            {tenantAdminEditable ? (
+              <Switch
+                label="Admin. de clínica"
+                description="Permite gestionar usuarios y configuración de la clínica."
+                checked={selectedRoles.includes(TENANT_ADMIN_ROLE)}
+                onChange={(event) =>
+                  toggleTenantAdmin(event.currentTarget.checked)
+                }
+              />
+            ) : (
+              <Text size="xs" c="dimmed">
+                Los roles de este usuario no se pueden modificar.
+              </Text>
+            )}
+          </Stack>
           <Group justify="flex-end">
             <Button variant="default" onClick={() => setEditing(null)}>
               Cancelar

@@ -1,9 +1,20 @@
-import { useEffect, useState, type FormEvent, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+} from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import timeGridPlugin from "@fullcalendar/timegrid";
-import type { DatesSetArg, EventClickArg } from "@fullcalendar/core";
+import type {
+  DateSelectArg,
+  DatesSetArg,
+  EventClickArg,
+  EventInput,
+} from "@fullcalendar/core";
 import {
   Container,
   Stack,
@@ -16,6 +27,7 @@ import {
   LoadingOverlay,
   Alert,
   MultiSelect,
+  Switch,
 } from "@mantine/core";
 import { IconX } from "@tabler/icons-react";
 import Snackbar from "@mui/material/Snackbar";
@@ -39,6 +51,9 @@ import { AppointmentViewModal } from "../../presentation/appointments/Appointmen
 import { CreateAppointmentModal } from "../../presentation/appointments/CreateAppointmentModal";
 import { getNextAvailableHourOfDay } from "../../util/utils";
 import { useOnceEffect } from "../../hooks/useOnceEffect";
+import { useRoles } from "../../hooks/useRoles";
+import { availabilityService } from "../../services/availabilityService";
+import { AvailabilityLegend } from "../availability/AvailabilityLegend";
 
 export function AppointmentsPage() {
   return (
@@ -199,6 +214,11 @@ function AppointmentsCalendar() {
     }>
   >([]);
   const [loading, setLoading] = useState(false);
+  const [availabilityEvents, setAvailabilityEvents] = useState<EventInput[]>(
+    [],
+  );
+  const [showAvailability, setShowAvailability] = useState(true);
+  const canViewAvailability = useRoles().can("availability.view");
   const [error, setError] = useState("");
   const [selectedAppointment, setSelectedAppointment] =
     useState<Appointment | null>(null);
@@ -278,6 +298,76 @@ function AppointmentsCalendar() {
     };
   }, [selectedSpecialistIds, selectedModes, calendarDateRange, refreshKey]);
 
+  // Disponibilidad y bloqueos como eventos de fondo (no clicables)
+  useEffect(() => {
+    if (!calendarDateRange || !canViewAvailability || !showAvailability) {
+      return;
+    }
+    let cancelled = false;
+    availabilityService
+      .getCalendarEvents({
+        start: normalizeCalendarDateTime(calendarDateRange.start),
+        end: normalizeCalendarDateTime(calendarDateRange.end),
+        specialistIds: selectedSpecialistIds,
+        appointmentMode:
+          selectedModes.length === 1 ? selectedModes[0] : undefined,
+      })
+      .then((data) => {
+        if (cancelled) return;
+        const names = new Map(
+          specialists.map((s) => [String(s.id), s.shortName || s.firstName]),
+        );
+        const showName = selectedSpecialistIds.length !== 1;
+        setAvailabilityEvents(
+          data.map((event) => ({
+            ...event,
+            title:
+              showName && names.has(event.resourceId)
+                ? `${event.title} · ${names.get(event.resourceId)}`
+                : event.title,
+          })),
+        );
+      })
+      .catch((err: Error) => {
+        if (!cancelled) setError(err.message);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    calendarDateRange,
+    selectedSpecialistIds,
+    selectedModes,
+    specialists,
+    canViewAvailability,
+    showAvailability,
+    refreshKey,
+  ]);
+
+  const combinedEvents = useMemo(
+    () =>
+      canViewAvailability && showAvailability
+        ? [...availabilityEvents, ...events]
+        : events,
+    [availabilityEvents, events, canViewAvailability, showAvailability],
+  );
+
+  function handleSelectRange(selection: DateSelectArg) {
+    selection.view.calendar.unselect();
+    const end = selection.allDay
+      ? new Date(selection.start.getTime() + 60 * 60 * 1000)
+      : selection.end;
+    setCreateFormData((prev) => ({
+      ...prev,
+      specialistId:
+        selectedSpecialistIds.length === 1 ? selectedSpecialistIds[0] : "",
+      appointmentStartDate: formatToDateTime(selection.start),
+      appointmentEndDate: formatToDateTime(end),
+      paidIndicator: false,
+    }));
+    setIsCreateModalOpen(true);
+  }
+
   function handleDatesSet(datesInfo: DatesSetArg) {
     setCalendarDateRange((prev) => {
       const newRange = calculateDateRange(datesInfo, prev);
@@ -286,7 +376,6 @@ function AppointmentsCalendar() {
   }
 
   function handleEventClick(clickInfo: EventClickArg) {
-    console.log("test");
     const appointment = clickInfo.event.extendedProps?.["fullAppointment"] as
       | Appointment
       | undefined;
@@ -302,9 +391,8 @@ function AppointmentsCalendar() {
     nextAvailableHourEnd.setHours(nextAvailableHourEnd.getHours() + 1);
     setCreateFormData((prev) => ({
       ...prev,
-      specialistId: !selectedSpecialistIds.length
-        ? selectedSpecialistIds[0]
-        : "",
+      specialistId:
+        selectedSpecialistIds.length === 1 ? selectedSpecialistIds[0] : "",
       appointmentStartDate: formatToDateTime(nextAvailableHourStart),
       appointmentEndDate: formatToDateTime(nextAvailableHourEnd),
       paidIndicator: false,
@@ -398,6 +486,19 @@ function AppointmentsCalendar() {
           />
         </Group>
 
+        {canViewAvailability && (
+          <Group justify="space-between" gap="sm" mb="md" wrap="wrap">
+            <Switch
+              label="Mostrar disponibilidad y bloqueos"
+              checked={showAvailability}
+              onChange={(event) =>
+                setShowAvailability(event.currentTarget.checked)
+              }
+            />
+            {showAvailability && <AvailabilityLegend />}
+          </Group>
+        )}
+
         <Button onClick={handleOpenCreateModal} fullWidth>
           Agendar Cita
         </Button>
@@ -432,9 +533,10 @@ function AppointmentsCalendar() {
               slotMinTime="08:00:00"
               slotMaxTime="24:00:00"
               height="auto"
-              events={events}
+              events={combinedEvents}
               selectMirror={true}
               selectable={true}
+              select={handleSelectRange}
               datesSet={handleDatesSet}
               eventClick={handleEventClick}
             />

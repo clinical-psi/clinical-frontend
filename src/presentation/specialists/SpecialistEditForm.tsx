@@ -26,6 +26,9 @@ import { useState, type FormEvent } from "react";
 import { SpecialistConfig } from "./SpecialistConfig";
 import { IconInfoCircle } from "@tabler/icons-react";
 import { useOnceEffect } from "../../hooks/useOnceEffect";
+import { useRoles } from "../../hooks/useRoles";
+import { isFeatureEnabled } from "../../config/features";
+import { SpecialistAvailabilityManager } from "../availability/SpecialistAvailabilityManager";
 
 type SpecialistEditFormProps = {
   editingSpecialistId?: string;
@@ -38,6 +41,8 @@ export function SpecialistEditForm({
   onCancel,
   onSaveSuccess,
 }: SpecialistEditFormProps) {
+  const canManageAvailability =
+    useRoles().can("availability.manage") && isFeatureEnabled("scheduling");
   const [error, setError] = useState("");
   const [showValidationErrors, setShowValidationErrors] = useState(false); // Para disparar los errores en los inputs
   const [saving, setSaving] = useState(false);
@@ -185,6 +190,9 @@ export function SpecialistEditForm({
         <Tabs defaultValue="general" keepMounted={false}>
           <Tabs.List>
             <Tabs.Tab value="general">Datos generales</Tabs.Tab>
+            {editingSpecialistId && canManageAvailability && (
+              <Tabs.Tab value="availability">Disponibilidad</Tabs.Tab>
+            )}
             <Tabs.Tab value="configuration">Configuración</Tabs.Tab>
           </Tabs.List>
           <Tabs.Panel value="general" pt="md">
@@ -362,6 +370,11 @@ export function SpecialistEditForm({
               </Stack>
             </form>
           </Tabs.Panel>
+          {editingSpecialistId && canManageAvailability && (
+            <Tabs.Panel value="availability" pt="md">
+              <SpecialistAvailabilityManager specialistId={editingSpecialistId} />
+            </Tabs.Panel>
+          )}
           <Tabs.Panel value="configuration">
             <SpecialistConfig
               editingSpecialistId={editingSpecialistId ?? ""}

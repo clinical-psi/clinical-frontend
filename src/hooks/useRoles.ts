@@ -7,6 +7,7 @@ import {
   hasAnyRole,
   type Permission,
 } from "../config/permissions";
+import { isFeatureEnabled } from "../config/features";
 
 export function useRoles() {
   const { user } = useAuth();
@@ -18,8 +19,10 @@ export function useRoles() {
     const primaryRole = getPrimaryRole(roleNames);
     const can = (permission: Permission) =>
       hasAnyRole(roleNames, PERMISSIONS[permission]);
-    const menuItems = MENU_ITEMS.filter((item) =>
-      hasAnyRole(roleNames, item.roles),
+    const menuItems = MENU_ITEMS.filter(
+      (item) =>
+        hasAnyRole(roleNames, item.roles) &&
+        (!item.feature || isFeatureEnabled(item.feature)),
     );
 
     return {
