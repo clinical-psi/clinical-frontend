@@ -24,9 +24,10 @@ import {
   IconAlertTriangle,
 } from "@tabler/icons-react";
 import type { AppointmentMode } from "../../data/http/appointmentsApi";
-import type { Location } from "../../data/http/locationsApi";
+import { formatLocationLabel, type LocationHallOption } from "../../data/http/locationsApi";
 import type { AvailabilityRule, DayOfWeek } from "../../types/availability";
 import { availabilityService } from "../../services/availabilityService";
+import type { ToastSeverity } from "../../components/feedback/feedbackContext";
 import {
   BUFFER_OPTIONS,
   DAYS,
@@ -41,7 +42,7 @@ type Block = {
   startTime: string;
   endTime: string;
   appointmentMode: "" | AppointmentMode;
-  locationId: string;
+  locationHallId: string;
   validFrom?: string | null;
   validTo?: string | null;
   timeZone?: string | null;
@@ -59,7 +60,7 @@ function toBlocks(rules: AvailabilityRule[]): Block[] {
     startTime: rule.startTime,
     endTime: rule.endTime,
     appointmentMode: rule.appointmentMode ?? "",
-    locationId: rule.locationId ? String(rule.locationId) : "",
+    locationHallId: rule.locationHallId ? String(rule.locationHallId) : "",
     validFrom: rule.validFrom,
     validTo: rule.validTo,
     timeZone: rule.timeZone,
@@ -72,7 +73,7 @@ function stripKey(block: Block): Omit<Block, "key"> {
     startTime: block.startTime,
     endTime: block.endTime,
     appointmentMode: block.appointmentMode,
-    locationId: block.locationId,
+    locationHallId: block.locationHallId,
     validFrom: block.validFrom,
     validTo: block.validTo,
     timeZone: block.timeZone,
@@ -108,9 +109,9 @@ export function WeeklyScheduleEditor({
   onNotify,
 }: {
   specialistId: string;
-  locations: Location[];
+  locations: LocationHallOption[];
   onSaved: () => void;
-  onNotify: (message: string, severity: "success" | "error") => void;
+  onNotify: (message: string, severity: ToastSeverity) => void;
 }) {
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [slotMinutes, setSlotMinutes] = useState(String(DEFAULT_SLOT));
@@ -169,9 +170,7 @@ export function WeeklyScheduleEditor({
 
   const locationOptions = locations.map((location) => ({
     value: String(location.id),
-    label: location.hallName
-      ? `${location.name} · ${location.hallName}`
-      : location.name,
+    label: formatLocationLabel(location),
   }));
 
   function updateBlock(key: string, patch: Partial<Block>) {
@@ -190,7 +189,7 @@ export function WeeklyScheduleEditor({
           startTime: "09:00",
           endTime: "13:00",
           appointmentMode: "",
-          locationId: "",
+          locationHallId: "",
         },
       ]);
     } else {
@@ -216,7 +215,7 @@ export function WeeklyScheduleEditor({
         startTime: format(start),
         endTime: format(end),
         appointmentMode: "",
-        locationId: "",
+        locationHallId: "",
       },
     ]);
   }
@@ -241,6 +240,7 @@ export function WeeklyScheduleEditor({
   }
 
   async function handleSave() {
+    if (saving) return;
     if (dayErrors.size > 0) {
       onNotify("Corrige los bloques marcados antes de guardar.", "error");
       return;
@@ -254,7 +254,7 @@ export function WeeklyScheduleEditor({
           startTime: block.startTime,
           endTime: block.endTime,
           appointmentMode: block.appointmentMode || null,
-          locationId: block.locationId ? Number(block.locationId) : null,
+          locationHallId: block.locationHallId ? Number(block.locationHallId) : null,
           slotMinutes: Number(slotMinutes),
           bufferMinutes: Number(bufferMinutes),
           validFrom: block.validFrom,
@@ -263,7 +263,7 @@ export function WeeklyScheduleEditor({
         })),
       );
       applyRules(saved);
-      onNotify("Horario guardado", "success");
+      onNotify("Horario guardado satisfactoriamente", "success");
       onSaved();
     } catch (err) {
       onNotify((err as Error).message, "error");
@@ -389,8 +389,8 @@ export function WeeklyScheduleEditor({
                         onChange={(value) =>
                           updateBlock(block.key, {
                             appointmentMode: (value ?? "") as Block["appointmentMode"],
-                            locationId:
-                              value === "ONLINE" ? "" : block.locationId,
+                            locationHallId:
+                              value === "ONLINE" ? "" : block.locationHallId,
                           })
                         }
                         allowDeselect={false}
@@ -399,13 +399,13 @@ export function WeeklyScheduleEditor({
                       {block.appointmentMode !== "ONLINE" &&
                         locationOptions.length > 0 && (
                           <Select
-                            label={index === 0 ? "Sede" : undefined}
-                            aria-label="Sede"
-                            placeholder="Cualquier sede"
+                            label={index === 0 ? "Sede y sala" : undefined}
+                            aria-label="Sede y sala"
+                            placeholder="Cualquier sede y sala"
                             data={locationOptions}
-                            value={block.locationId || null}
+                            value={block.locationHallId || null}
                             onChange={(value) =>
-                              updateBlock(block.key, { locationId: value ?? "" })
+                              updateBlock(block.key, { locationHallId: value ?? "" })
                             }
                             clearable
                             w={200}
@@ -486,7 +486,7 @@ export function WeeklyScheduleEditor({
 
       {hasInPerson && locationOptions.length > 0 && (
         <Text size="xs" c="dimmed">
-          Si no eliges sede, el bloque presencial vale para cualquier sede.
+          Si no eliges sala, el bloque presencial vale para cualquier sede y sala.
         </Text>
       )}
 

@@ -7,6 +7,14 @@ import type {
 import type { CreateSpecialistRequest } from "../types/create-specialist";
 
 export const specialistService = {
+  getSelfProfile: specialistsApi.getSelfProfile,
+  activateSelf: specialistsApi.activateSelf,
+  getAccess: specialistsApi.getAccess,
+  changeAccess: specialistsApi.changeAccess,
+  async updateAgendaColor(specialistId: string, agendaColor: string): Promise<Specialist> {
+    return specialistsApi.updateAgendaColor(specialistId, agendaColor);
+  },
+
   async getById(specialistId: string): Promise<Specialist> {
     return specialistsApi.getById(specialistId);
   },

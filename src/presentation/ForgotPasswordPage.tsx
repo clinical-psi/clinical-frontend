@@ -85,7 +85,7 @@ export function ForgotPasswordPage({ onBack }: { onBack: () => void }) {
                 required
               />
             </div>
-            <button type="submit" disabled={loading} className="login-button">
+            <button type="submit" disabled={loading} aria-busy={loading} className="login-button">
               {loading ? "Enviando..." : "Enviar código"}
             </button>
           </form>
@@ -107,7 +107,7 @@ export function ForgotPasswordPage({ onBack }: { onBack: () => void }) {
                 required
               />
             </div>
-            <button type="submit" disabled={loading} className="login-button">
+            <button type="submit" disabled={loading} aria-busy={loading} className="login-button">
               {loading ? "Verificando..." : "Verificar código"}
             </button>
             <div className="login-links">
@@ -147,7 +147,7 @@ export function ForgotPasswordPage({ onBack }: { onBack: () => void }) {
                 required
               />
             </div>
-            <button type="submit" disabled={loading} className="login-button">
+            <button type="submit" disabled={loading} aria-busy={loading} className="login-button">
               {loading ? "Guardando..." : "Restablecer contraseña"}
             </button>
           </form>

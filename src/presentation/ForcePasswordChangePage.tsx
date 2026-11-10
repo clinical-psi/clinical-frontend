@@ -82,7 +82,7 @@ export function ForcePasswordChangePage() {
               required
             />
           </div>
-          <button type="submit" disabled={loading} className="login-button">
+          <button type="submit" disabled={loading} aria-busy={loading} className="login-button">
             {loading ? "Guardando..." : "Cambiar contraseña"}
           </button>
           <div className="login-links">

@@ -46,8 +46,8 @@ export const availabilityService = {
       startTime: toHourMinute(rule.startTime),
       endTime: toHourMinute(rule.endTime),
       appointmentMode: rule.appointmentMode ?? null,
-      locationId:
-        rule.appointmentMode === "ONLINE" ? null : (rule.locationId ?? null),
+      locationHallId:
+        rule.appointmentMode === "ONLINE" ? null : (rule.locationHallId ?? null),
       slotMinutes: rule.slotMinutes ?? null,
       bufferMinutes: rule.bufferMinutes ?? null,
       validFrom: rule.validFrom || null,
@@ -78,10 +78,10 @@ export const availabilityService = {
     const payload: AvailabilityExceptionRequest = {
       ...request,
       reason: request.reason?.trim() || undefined,
-      locationId:
+      locationHallId:
         request.appointmentMode === "ONLINE"
           ? null
-          : (request.locationId ?? null),
+          : (request.locationHallId ?? null),
     };
     return exceptionId
       ? availabilityApi.updateException(specialistId, exceptionId, payload)
@@ -100,14 +100,14 @@ export const availabilityService = {
     start: string,
     end: string,
     appointmentMode?: AppointmentMode,
-    locationId?: string,
+    locationHallId?: string,
   ): Promise<AvailableSlot[]> {
     return availabilityApi.getAvailableSlots(
       specialistId,
       start,
       end,
       appointmentMode,
-      locationId,
+      locationHallId,
     );
   },
 

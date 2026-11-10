@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Alert, Button, Paper, PasswordInput, Stack } from "@mantine/core";
 import { authService } from "../../services/authService";
+import { errorMessage, useToast } from "../../components/feedback/feedbackContext";
 
 export function ChangePasswordForm() {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -8,12 +9,12 @@ export function ChangePasswordForm() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
+  const toast = useToast();
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (saving) return;
     setError("");
-    setSuccess(false);
 
     if (newPassword.length < 6) {
       setError("La nueva contraseña debe tener al menos 6 caracteres");
@@ -27,16 +28,12 @@ export function ChangePasswordForm() {
     setSaving(true);
     try {
       await authService.changePassword(currentPassword, newPassword);
-      setSuccess(true);
+      toast.success("Contraseña actualizada satisfactoriamente");
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
     } catch (requestError) {
-      setError(
-        requestError instanceof Error
-          ? requestError.message
-          : "No se pudo cambiar la contraseña",
-      );
+      setError(errorMessage(requestError, "No se pudo cambiar la contraseña"));
     } finally {
       setSaving(false);
     }
@@ -51,27 +48,25 @@ export function ChangePasswordForm() {
               {error}
             </Alert>
           )}
-          {success && (
-            <Alert color="green" title="Listo">
-              Contraseña actualizada correctamente
-            </Alert>
-          )}
           <PasswordInput
             label="Contraseña actual"
             required
             value={currentPassword}
+            disabled={saving}
             onChange={(e) => setCurrentPassword(e.target.value)}
           />
           <PasswordInput
             label="Nueva contraseña"
             required
             value={newPassword}
+            disabled={saving}
             onChange={(e) => setNewPassword(e.target.value)}
           />
           <PasswordInput
             label="Confirmar nueva contraseña"
             required
             value={confirmPassword}
+            disabled={saving}
             onChange={(e) => setConfirmPassword(e.target.value)}
           />
           <Button type="submit" loading={saving}>

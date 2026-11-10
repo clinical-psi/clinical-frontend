@@ -565,7 +565,7 @@ textarea {
 }
 .fc .fc-bg-event.fc-availability-available {
   background: #d3f9d8;
-  opacity: 0.55;
+  opacity: 0.3;
 }
 .fc .fc-bg-event.fc-availability-blocked {
   background: repeating-linear-gradient(
@@ -575,13 +575,56 @@ textarea {
     #ffc9c9 6px,
     #ffc9c9 12px
   );
-  opacity: 0.75;
+  opacity: 0.4;
 }
 .fc .fc-bg-event.fc-availability .fc-event-title {
   margin: 2px 4px;
   font-size: 0.7rem;
   font-style: normal;
   color: var(--ink);
+}
+.fc .fc-event.fc-saved-appointment,
+.fc .fc-event.fc-saved-appointment .fc-event-main,
+.fc .fc-bg-event.fc-availability .fc-event-title {
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 500;
+  font-style: normal;
+  line-height: 1.25;
+}
+.fc .fc-event.fc-saved-appointment {
+  overflow: hidden;
+}
+.fc .fc-saved-appointment.appointment-status-scheduled {
+  border-style: dashed;
+}
+.fc .fc-saved-appointment.appointment-status-completed {
+  opacity: 0.65;
+}
+.fc .fc-saved-appointment.appointment-status-no_show {
+  background-image: repeating-linear-gradient(135deg, transparent, transparent 6px, rgba(0, 0, 0, 0.16) 6px, rgba(0, 0, 0, 0.16) 9px);
+}
+.fc .fc-saved-appointment.appointment-status-cancelled {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+.fc .fc-saved-appointment .appointment-content {
+  min-width: 0;
+  overflow: hidden;
+}
+.fc .fc-saved-appointment .appointment-time,
+.fc .fc-saved-appointment .appointment-name,
+.fc .fc-saved-appointment .appointment-status-label {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fc .fc-saved-appointment .appointment-mode {
+  display: inline-block;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  padding: 0 2px;
 }
 .fc .fc-event.fc-appointment-readonly {
   cursor: default;
@@ -607,6 +650,57 @@ textarea {
 }
 .availability-swatch-appointment {
   background: var(--accent);
+}
+.fc .fc-event.fc-specialist-availability,
+.fc .fc-specialist-availability .fc-event-main {
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 500;
+  font-style: normal;
+  line-height: 1.25;
+}
+.fc .fc-event.fc-specialist-availability {
+  cursor: default;
+  border-left-width: 4px;
+  overflow: hidden;
+}
+/* Estos bloques informativos no deben impedir seleccionar horarios ni abrir citas. */
+.fc .fc-event-harness:has(.fc-specialist-availability) {
+  pointer-events: none;
+}
+.fc .fc-event.fc-specialist-availability-blocked {
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent,
+    transparent 6px,
+    rgb(127 127 127 / 8%) 6px,
+    rgb(127 127 127 / 8%) 12px
+  );
+}
+.specialist-availability-content {
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.specialist-availability-content > span {
+  display: block;
+}
+.specialist-availability-time {
+  white-space: nowrap;
+}
+.availability-swatch-available.availability-swatch-by-specialist {
+  background: color-mix(in srgb, var(--muted) 8%, transparent);
+}
+.availability-swatch-blocked.availability-swatch-by-specialist {
+  background: repeating-linear-gradient(
+    135deg,
+    transparent,
+    transparent 3px,
+    rgb(127 127 127 / 8%) 3px,
+    rgb(127 127 127 / 8%) 6px
+  );
+}
+.availability-swatch-appointment.availability-swatch-by-specialist {
+  background: var(--muted);
 }
 .availability-day[data-error="true"] {
   border-color: var(--mantine-color-red-5);

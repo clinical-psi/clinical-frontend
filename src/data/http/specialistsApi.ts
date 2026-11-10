@@ -8,7 +8,19 @@ import type { PatientPage } from "../../types/get-patient";
 
 export type { Specialist, PatientPage };
 
+export type SpecialistAccessStatus = "NONE" | "PENDING" | "EXPIRED" | "CANCELLED" | "ACTIVE" | "REVOKED" | "ACCOUNT_DISABLED";
+export type SpecialistAccess = {
+  status: SpecialistAccessStatus; email: string | null; expiresAt: string | null; userId: number | null;
+};
+export type SelfSpecialist = { id: number | null; status: SpecialistAccessStatus | "INACTIVE" };
+export type SpecialistAccessAction = "invite" | "resend" | "cancel" | "revoke" | "restore";
+
 export const specialistsApi = {
+  getSelfProfile: () => get<SelfSpecialist>("/specialists/me/profile"),
+  activateSelf: () => post<{ id: number }>("/specialists/me/activate", {}),
+  getAccess: (id: string) => get<SpecialistAccess>(`/specialists/${id}/access`),
+  changeAccess: (id: string, action: SpecialistAccessAction, email?: string) =>
+    post<SpecialistAccess>(`/specialists/${id}/access/${action}`, email ? { email } : {}),
   getById: async (specialistId: string) => {
     return get<Specialist>(`/specialists/${specialistId}`);
   },
@@ -27,6 +39,10 @@ export const specialistsApi = {
 
   update: async (specialistId: string, specialist: CreateSpecialistRequest) => {
     return patch<Specialist>(`/specialists/${specialistId}`, specialist);
+  },
+
+  updateAgendaColor: async (specialistId: string, agendaColor: string) => {
+    return patch<Specialist>(`/specialists/${specialistId}/agenda-color`, { agendaColor });
   },
 
   deactivate: async (specialistId: string) => {

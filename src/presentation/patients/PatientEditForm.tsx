@@ -24,8 +24,7 @@ import {
   Badge,
 } from "@mantine/core";
 import { IconPlus, IconTrash, IconUserShield } from "@tabler/icons-react";
-import Snackbar from "@mui/material/Snackbar";
-import MUIAlert from "@mui/material/Alert";
+import { useToast } from "../../components/feedback/feedbackContext";
 import { patientService } from "../../services/patientService";
 import type { CreatePatientRequest } from "../../types/create-patient";
 import { emergencyContactService } from "../../services/emergencyContactService";
@@ -52,7 +51,7 @@ export function PatientEditForm({
   const [error, setError] = useState("");
   const [showValidationErrors, setShowValidationErrors] = useState(false); // Para disparar los errores en los inputs
   const [saving, setSaving] = useState(false);
-  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const toast = useToast();
   const [isPhoneValid, setIsPhoneValid] = useState(false);
   const [isChangeStatusModalOpen, setIsChangeStatusModalOpen] = useState(false);
   const [patientForm, setPatientForm] = useState({
@@ -129,6 +128,7 @@ export function PatientEditForm({
 
   async function handlePatientSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (saving) return;
     setError("");
 
     const isEmailValid = EMAIL_REGEX.test(patientForm.email);
@@ -162,6 +162,7 @@ export function PatientEditForm({
         : undefined,
     };
 
+    const isNew = !editingPatientId;
     setSaving(true);
     try {
       if (editingPatientId) {
@@ -177,10 +178,10 @@ export function PatientEditForm({
         });
       }
 
-      setShowSuccessToast(true);
-      setTimeout(() => {
-        onSaveSuccess();
-      }, 1500);
+      toast.success(isNew
+        ? "Paciente registrado satisfactoriamente"
+        : "Paciente actualizado satisfactoriamente");
+      onSaveSuccess();
     } catch (requestError) {
       setError(
         requestError instanceof Error
@@ -250,6 +251,7 @@ export function PatientEditForm({
         ...prev,
         status: fullPatient.status ?? "",
       }));
+      toast.success("Estado del paciente actualizado satisfactoriamente");
     } catch (requestError) {
       setError(
         requestError instanceof Error
@@ -708,11 +710,11 @@ export function PatientEditForm({
 
                 {/* Botones de acción */}
                 <Group justify="flex-end" mt="lg">
-                  <Button variant="default" onClick={onCancel}>
+                  <Button variant="default" onClick={onCancel} disabled={saving}>
                     Cancelar
                   </Button>
                   <Button type="submit" loading={saving}>
-                    {saving ? "Guardando..." : "Guardar paciente"}
+                    Guardar paciente
                   </Button>
                 </Group>
               </Stack>
@@ -739,20 +741,6 @@ export function PatientEditForm({
         </Tabs>
       </Paper>
 
-      {/* Toast de éxito */}
-      <Snackbar
-        open={showSuccessToast}
-        autoHideDuration={5000}
-        onClose={() => setShowSuccessToast(false)}
-      >
-        <MUIAlert
-          severity="success"
-          variant="filled"
-          onClose={() => setShowSuccessToast(false)}
-        >
-          Paciente registrado satisfactoriamente
-        </MUIAlert>
-      </Snackbar>
       <ChangeStatusModal
         open={isChangeStatusModalOpen}
         patient={activePatientForStatus}

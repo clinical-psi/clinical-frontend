@@ -28,6 +28,7 @@ export type PatientPage = {
 };
 
 export type PatientAppointment = {
+  status: import("../data/http/appointmentsApi").AppointmentStatus;
   id: string;
   appointmentStartDate: string;
   appointmentEndDate: string;

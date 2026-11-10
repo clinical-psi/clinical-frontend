@@ -19,6 +19,8 @@ import { IconEdit, IconUserOff } from "@tabler/icons-react";
 import { userService } from "../../services/userService";
 import type { CreateUser } from "../../types/create-user";
 import type { GetUser } from "../../types/get-user";
+import { useConfirm, useToast } from "../../components/feedback/feedbackContext";
+import { ModalActions } from "../../components/feedback/ModalActions";
 
 const PAGE_SIZE = 10;
 const TENANT_ADMIN_ROLE = "TENANT_ADMIN";
@@ -77,7 +79,8 @@ export function UsersPanel() {
   const [originalRoles, setOriginalRoles] = useState<string[]>([]);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
-  const [deactivating, setDeactivating] = useState<GetUser | null>(null);
+  const toast = useToast();
+  const confirm = useConfirm();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -156,7 +159,7 @@ export function UsersPanel() {
   const specialistEditable = canEditProperties(originalRoles);
 
   async function handleSave() {
-    if (!editing) return;
+    if (!editing || saving) return;
     if (!form.firstName.trim() || !form.lastName.trim() || !form.email.trim()) {
       setError("Nombre, apellido y email son requeridos");
       return;
@@ -180,6 +183,7 @@ export function UsersPanel() {
       );
       await userService.update(editing.userId, request);
       setEditing(null);
+      toast.success("Usuario actualizado satisfactoriamente");
       await load();
     } catch (requestError) {
       setError(
@@ -192,32 +196,28 @@ export function UsersPanel() {
     }
   }
 
-  async function handleDeactivate() {
-    if (!deactivating) return;
-    setSaving(true);
+  function handleDeactivate(user: GetUser) {
     setError("");
-    try {
-      const request = await buildRequest(
-        deactivating,
-        {
-          firstName: deactivating.firstName,
-          lastName: deactivating.lastName,
-          email: deactivating.email,
-        },
-        false,
-      );
-      await userService.update(deactivating.userId, request);
-      setDeactivating(null);
-      await load();
-    } catch (requestError) {
-      setError(
-        requestError instanceof Error
-          ? requestError.message
-          : "No se pudo dar de baja al usuario",
-      );
-    } finally {
-      setSaving(false);
-    }
+    void confirm({
+      title: "Dar de baja",
+      message: `¿Dar de baja a ${user.firstName} ${user.lastName}?`,
+      confirmLabel: "Dar de baja",
+      destructive: true,
+      onConfirm: async () => {
+        const request = await buildRequest(
+          user,
+          {
+            firstName: user.firstName,
+            lastName: user.lastName,
+            email: user.email,
+          },
+          false,
+        );
+        await userService.update(user.userId, request);
+        toast.success("Usuario dado de baja satisfactoriamente");
+        await load();
+      },
+    });
   }
 
   return (
@@ -292,7 +292,7 @@ export function UsersPanel() {
                       variant="default"
                       color="red"
                       title="Dar de baja"
-                      onClick={() => setDeactivating(user)}
+                      onClick={() => handleDeactivate(user)}
                     >
                       <IconUserOff size={16} />
                     </ActionIcon>
@@ -312,7 +312,7 @@ export function UsersPanel() {
 
       <Modal
         opened={!!editing}
-        onClose={() => setEditing(null)}
+        onClose={() => { if (!saving) setEditing(null); }}
         title="Editar usuario"
       >
         <Stack gap="md">
@@ -360,36 +360,15 @@ export function UsersPanel() {
               </Text>
             )}
           </Stack>
-          <Group justify="flex-end">
-            <Button variant="default" onClick={() => setEditing(null)}>
-              Cancelar
-            </Button>
-            <Button loading={saving} onClick={handleSave}>
-              Guardar
-            </Button>
-          </Group>
+          <ModalActions
+            onCancel={() => setEditing(null)}
+            submitLabel="Guardar"
+            loading={saving}
+            onSubmit={handleSave}
+          />
         </Stack>
       </Modal>
 
-      <Modal
-        opened={!!deactivating}
-        onClose={() => setDeactivating(null)}
-        title="Dar de baja"
-      >
-        <Stack gap="md">
-          <Text>
-            ¿Dar de baja a {deactivating?.firstName} {deactivating?.lastName}?
-          </Text>
-          <Group justify="flex-end">
-            <Button variant="default" onClick={() => setDeactivating(null)}>
-              Cancelar
-            </Button>
-            <Button color="red" loading={saving} onClick={handleDeactivate}>
-              Dar de baja
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
     </Stack>
   );
 }

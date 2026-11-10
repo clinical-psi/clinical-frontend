@@ -13,6 +13,7 @@ import { availabilityService } from "../../services/availabilityService";
 import { specialistService } from "../../services/specialistService";
 import { calculateDateRange, toISOStringWithTimezone } from "../../util/utils";
 import { AvailabilityLegend } from "./AvailabilityLegend";
+import { APPOINTMENT_STATUSES } from "../appointments/appointmentStatus";
 
 export function SpecialistAvailabilityCalendar({
   specialistId,
@@ -43,9 +44,7 @@ export function SpecialistAvailabilityCalendar({
         end,
         specialistIds: [specialistId],
       }),
-      specialistService
-        .getAppointmentsBySpecialistId(specialistId, start, end)
-        .catch(() => []),
+      specialistService.getAppointmentsBySpecialistId(specialistId, start, end),
     ])
       .then(([availability, appointments]) => {
         if (cancelled) return;
@@ -54,8 +53,7 @@ export function SpecialistAvailabilityCalendar({
           ...appointments.map((appointment) => ({
             id: `appointment-${appointment.id}`,
             title:
-              `${appointment.patient?.firstName ?? ""} ${appointment.patient?.lastName ?? ""}`.trim() ||
-              "Cita",
+              `${APPOINTMENT_STATUSES[appointment.status].marker} ${appointment.patient?.firstName ?? ""} ${appointment.patient?.lastName ?? ""} · ${APPOINTMENT_STATUSES[appointment.status].label}`.trim(),
             start: appointment.appointmentStartDate,
             end: appointment.appointmentEndDate,
             classNames: ["fc-appointment-readonly"],

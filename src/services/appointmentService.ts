@@ -5,6 +5,10 @@ import {
 } from "../data/http/appointmentsApi";
 
 export const appointmentService = {
+  update: async (appointmentId: string, request: CreateAppointmentRequest) => {
+    return appointmentsApi.update(appointmentId, request);
+  },
+
   create: async (patientId: string, request: CreateAppointmentRequest) => {
     return appointmentsApi.create(patientId, request);
   },
@@ -13,7 +17,6 @@ export const appointmentService = {
     return appointmentsApi.getByFilters(request);
   },
 
-  deleteById: async (appointmentId: string): Promise<void> => {
-    return appointmentsApi.deleteById(appointmentId);
-  },
+  transition: appointmentsApi.transition,
+  history: appointmentsApi.history,
 };

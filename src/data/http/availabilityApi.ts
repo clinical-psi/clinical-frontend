@@ -66,11 +66,11 @@ export const availabilityApi = {
     start: string,
     end: string,
     appointmentMode?: AppointmentMode,
-    locationId?: string,
+    locationHallId?: string,
   ) =>
     get<AvailableSlot[]>(
       `${base(specialistId)}/available-slots`,
-      compact({ start, end, appointmentMode, locationId }),
+      compact({ start, end, appointmentMode, locationHallId }),
     ),
 
   getCalendar: (filter: AvailabilityCalendarFilter) =>
@@ -82,7 +82,7 @@ export const availabilityApi = {
         // Spring enlaza "1,2,3" a List<Long>
         specialistIds: filter.specialistIds?.join(","),
         appointmentMode: filter.appointmentMode,
-        locationId: filter.locationId,
+        locationHallId: filter.locationHallId,
       }),
     ),
 };

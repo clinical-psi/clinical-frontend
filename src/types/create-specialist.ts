@@ -4,5 +4,5 @@ export type CreateSpecialistRequest = {
   notes?: string;
   email?: string;
   phoneNumber?: string;
-  createUser?: boolean;
+  inviteAccess?: boolean;
 };

@@ -10,7 +10,7 @@ import {
   Button,
   Title,
   Alert,
-  Checkbox,
+  Radio,
   Avatar,
   FileInput,
   Loader,
@@ -18,8 +18,7 @@ import {
   Tooltip,
   ActionIcon,
 } from "@mantine/core";
-import Snackbar from "@mui/material/Snackbar";
-import MUIAlert from "@mui/material/Alert";
+import { useToast } from "../../components/feedback/feedbackContext";
 import { specialistService } from "../../services/specialistService";
 import { PhoneInput } from "../../components/PhoneInput";
 import { useState, type FormEvent } from "react";
@@ -29,6 +28,7 @@ import { useOnceEffect } from "../../hooks/useOnceEffect";
 import { useRoles } from "../../hooks/useRoles";
 import { isFeatureEnabled } from "../../config/features";
 import { SpecialistAvailabilityManager } from "../availability/SpecialistAvailabilityManager";
+import { SpecialistAccessPanel } from "./SpecialistAccessPanel";
 
 type SpecialistEditFormProps = {
   editingSpecialistId?: string;
@@ -41,12 +41,13 @@ export function SpecialistEditForm({
   onCancel,
   onSaveSuccess,
 }: SpecialistEditFormProps) {
+  const canManageAccess = useRoles().can("specialists.access");
   const canManageAvailability =
     useRoles().can("availability.manage") && isFeatureEnabled("scheduling");
   const [error, setError] = useState("");
   const [showValidationErrors, setShowValidationErrors] = useState(false); // Para disparar los errores en los inputs
   const [saving, setSaving] = useState(false);
-  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const toast = useToast();
   const [specialistForm, setSpecialistForm] = useState({
     firstName: "",
     lastName: "",
@@ -55,8 +56,7 @@ export function SpecialistEditForm({
     notes: "",
     userId: "",
   });
-  const [userId, setUserId] = useState<string | null>(null);
-  const [createUser, setCreateUser] = useState(false);
+  const [inviteAccess, setInviteAccess] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   // Al crear aun no hay id: la foto queda pendiente y se sube tras el POST
@@ -82,6 +82,7 @@ export function SpecialistEditForm({
       await specialistService.uploadPhoto(editingSpecialistId, file);
       const refreshed = await specialistService.getById(editingSpecialistId);
       setPhotoUrl(refreshed.photoUrl ?? null);
+      toast.success("Foto actualizada satisfactoriamente");
     } catch (photoError) {
       setError(
         photoError instanceof Error
@@ -108,7 +109,6 @@ export function SpecialistEditForm({
           notes: fullSpecialist.notes ?? "",
           userId: fullSpecialist.user?.userId ?? "",
         });
-        setUserId(fullSpecialist.user?.userId ?? null);
         setPhotoUrl(fullSpecialist.photoUrl ?? null);
       } catch (requestError) {
         setError(
@@ -122,6 +122,7 @@ export function SpecialistEditForm({
 
   async function handleSpecialistSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (saving) return;
     setError("");
 
     const isEmailValid = EMAIL_REGEX.test(specialistForm.email);
@@ -146,7 +147,7 @@ export function SpecialistEditForm({
       email: specialistForm.email.trim() || undefined,
       phoneNumber: specialistForm.phoneNumber.trim() || undefined,
       notes: specialistForm.notes.trim() || undefined,
-      createUser: createUser || undefined,
+      inviteAccess: !editingSpecialistId && inviteAccess || undefined,
     };
 
     setSaving(true);
@@ -159,10 +160,12 @@ export function SpecialistEditForm({
           await specialistService.uploadPhoto(created.id, pendingPhoto);
         }
       }
-      setShowSuccessToast(true);
-      setTimeout(() => {
-        onSaveSuccess();
-      }, 1500);
+      toast.success(editingSpecialistId
+        ? "Especialista actualizado satisfactoriamente"
+        : inviteAccess
+          ? "Especialista registrado e invitación enviada satisfactoriamente"
+          : "Especialista registrado satisfactoriamente");
+      onSaveSuccess();
     } catch (requestError) {
       setError(
         requestError instanceof Error
@@ -344,27 +347,30 @@ export function SpecialistEditForm({
                   }
                 />
 
-                {!userId ? (
-                  <Checkbox
-                    label="Registrar usuario"
-                    checked={createUser}
-                    onChange={(event) =>
-                      setCreateUser(event.currentTarget.checked)
-                    }
-                  />
+                {canManageAccess && (editingSpecialistId ? (
+                  <SpecialistAccessPanel specialistId={editingSpecialistId}
+                    disabled={saving} />
                 ) : (
-                  <Text c="dimmed" size="sm">
-                    Este especialista ya tiene un usuario registrado
-                  </Text>
-                )}
+                  <Paper withBorder p="md" radius="md">
+                    <Radio.Group label="Acceso al sistema" value={inviteAccess ? "invite" : "none"}
+                      onChange={(value) => setInviteAccess(value === "invite")}>
+                      <Stack gap="sm" mt="sm">
+                        <Radio value="none" label="Sin acceso por ahora"
+                          description="Recepción o administración gestionará su agenda." />
+                        <Radio value="invite" label="Invitar a acceder"
+                          description="Recibirá un enlace en su correo de contacto. Si ya tiene cuenta, la reutilizará al aceptar." />
+                      </Stack>
+                    </Radio.Group>
+                  </Paper>
+                ))}
 
                 {/* Botones de acción */}
                 <Group justify="flex-end" mt="lg">
-                  <Button variant="default" onClick={onCancel}>
+                  <Button variant="default" onClick={onCancel} disabled={saving}>
                     Cancelar
                   </Button>
                   <Button type="submit" loading={saving}>
-                    {saving ? "Guardando..." : "Guardar especialista"}
+                    {!editingSpecialistId && inviteAccess ? "Guardar e invitar" : "Guardar especialista"}
                   </Button>
                 </Group>
               </Stack>
@@ -376,30 +382,17 @@ export function SpecialistEditForm({
             </Tabs.Panel>
           )}
           <Tabs.Panel value="configuration">
-            <SpecialistConfig
-              editingSpecialistId={editingSpecialistId ?? ""}
+            {editingSpecialistId ? <SpecialistConfig
+              key={editingSpecialistId}
+              editingSpecialistId={editingSpecialistId}
               saving={saving}
               onCancel={() => {}}
               onSaveSuccess={onSaveSuccess}
-            />
+            /> : <Text pt="md">Guarda al especialista antes de configurar su agenda.</Text>}
           </Tabs.Panel>
         </Tabs>
       </Paper>
 
-      {/* Toast de éxito */}
-      <Snackbar
-        open={showSuccessToast}
-        autoHideDuration={5000}
-        onClose={() => setShowSuccessToast(false)}
-      >
-        <MUIAlert
-          severity="success"
-          variant="filled"
-          onClose={() => setShowSuccessToast(false)}
-        >
-          Especialista registrado satisfactoriamente
-        </MUIAlert>
-      </Snackbar>
     </Container>
   );
 }

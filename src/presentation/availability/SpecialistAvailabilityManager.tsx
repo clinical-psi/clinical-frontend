@@ -5,9 +5,8 @@ import {
   IconCalendarOff,
   IconClockHour4,
 } from "@tabler/icons-react";
-import Snackbar from "@mui/material/Snackbar";
-import MUIAlert from "@mui/material/Alert";
-import type { Location } from "../../data/http/locationsApi";
+import { useToast, type ToastSeverity } from "../../components/feedback/feedbackContext";
+import type { LocationHallOption } from "../../data/http/locationsApi";
 import type { AvailabilityExceptionRequest } from "../../types/availability";
 import { locationService } from "../../services/locationService";
 import { availabilityService } from "../../services/availabilityService";
@@ -21,17 +20,15 @@ import {
 } from "./AvailabilityExceptionModal";
 import { addDays, toDateInput, toDateTimeInput } from "./availabilityUi";
 
-type Toast = { message: string; severity: "success" | "error" } | null;
-
 export function SpecialistAvailabilityManager({
   specialistId,
 }: {
   specialistId: string;
 }) {
-  const [locations, setLocations] = useState<Location[]>([]);
+  const [locations, setLocations] = useState<LocationHallOption[]>([]);
   const [tab, setTab] = useState<string | null>("schedule");
   const [refreshKey, setRefreshKey] = useState(0);
-  const [toast, setToast] = useState<Toast>(null);
+  const toast = useToast();
   const [quickDefaults, setQuickDefaults] =
     useState<Partial<AvailabilityExceptionFormDefaults> | null>(null);
   const [quickKey, setQuickKey] = useState(0);
@@ -40,11 +37,11 @@ export function SpecialistAvailabilityManager({
     locationService
       .getAll()
       .then(setLocations)
-      .catch(() => setLocations([]));
+      .catch((err: Error) => toast.error(err.message));
   });
 
-  const notify = (message: string, severity: "success" | "error") =>
-    setToast({ message, severity });
+  const notify = (message: string, severity: ToastSeverity) =>
+    toast[severity](message);
   const refresh = () => setRefreshKey((key) => key + 1);
 
   function handleCalendarSelect(start: Date, end: Date, allDay: boolean) {
@@ -76,7 +73,7 @@ export function SpecialistAvailabilityManager({
         ? `Bloqueo guardado. Hay ${saved.overlappingAppointments} cita(s) dentro de este periodo que debes reprogramar.`
         : "Excepción guardada",
       saved.type === "BLOCKED" && saved.overlappingAppointments > 0
-        ? "error"
+        ? "warning"
         : "success",
     );
   }
@@ -131,20 +128,6 @@ export function SpecialistAvailabilityManager({
           onSubmit={handleQuickSubmit}
         />
       )}
-
-      <Snackbar
-        open={toast !== null}
-        autoHideDuration={5000}
-        onClose={() => setToast(null)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
-        <MUIAlert
-          severity={toast?.severity ?? "success"}
-          onClose={() => setToast(null)}
-        >
-          {toast?.message}
-        </MUIAlert>
-      </Snackbar>
     </Stack>
   );
 }

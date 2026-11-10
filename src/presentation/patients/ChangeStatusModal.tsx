@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Modal, Text, Stack, Paper, Group, Button } from "@mantine/core";
+import { Modal, Text, Stack, Paper, Group } from "@mantine/core";
+import { ModalActions } from "../../components/feedback/ModalActions";
 import { TRANSITION_RULES } from "../../util/constants";
 
 interface ChangeStatusModalProps {
@@ -34,7 +35,7 @@ export function ChangeStatusModal({
     : TRANSITION_RULES.ACTIVE_OR_WAITING;
 
   const handleSave = async () => {
-    if (!selectedStatus || patient.id === null) return;
+    if (!selectedStatus || patient.id === null || loading) return;
     setLoading(true);
     try {
       await onConfirm(patient.id, selectedStatus);
@@ -48,14 +49,12 @@ export function ChangeStatusModal({
   return (
     <Modal
       opened={open}
-      onClose={onClose}
-      title={
-        <Text fw={600} size="lg">
-          Cambiar estado de {patient.firstName} {patient.lastName}
-        </Text>
-      }
-      centered
+      onClose={() => { if (!loading) onClose(); }}
+      title={`Cambiar estado de ${patient.firstName} ${patient.lastName}`}
       size="md"
+      closeOnClickOutside={!loading}
+      closeOnEscape={!loading}
+      withCloseButton={!loading}
     >
       <Text size="sm" c="dimmed" mb="md">
         Selecciona el nuevo estado clínico para el paciente:
@@ -112,19 +111,13 @@ export function ChangeStatusModal({
         })}
       </Stack>
 
-      <Group justify="end">
-        <Button variant="default" onClick={onClose} disabled={loading}>
-          Cancelar
-        </Button>
-        <Button
-          color="blue"
-          disabled={!selectedStatus}
-          loading={loading}
-          onClick={handleSave}
-        >
-          Guardar cambio
-        </Button>
-      </Group>
+      <ModalActions
+        onCancel={onClose}
+        submitLabel="Guardar cambio"
+        disabled={!selectedStatus}
+        loading={loading}
+        onSubmit={handleSave}
+      />
     </Modal>
   );
 }

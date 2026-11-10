@@ -21,8 +21,11 @@ import { specialistService } from "../../services/specialistService";
 import type { Specialist } from "../../data/http/specialistsApi";
 import { SpecialistEditForm } from "./SpecialistEditForm";
 import { useOnceEffect } from "../../hooks/useOnceEffect";
+import { useRoles } from "../../hooks/useRoles";
+import { ActivateSpecialistProfile } from "./ActivateSpecialistProfile";
 
 export function SpecialistsPage() {
+  const { roleNames } = useRoles();
   const [specialists, setSpecialists] = useState<Specialist[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -99,6 +102,7 @@ export function SpecialistsPage() {
       </Group>
 
       {/* Error Alert */}
+      {roleNames.includes("TENANT_ADMIN") && <ActivateSpecialistProfile onActivated={() => { void loadSpecialists(); }} />}
       {error && (
         <Alert title="Error" color="red" mb="md" onClose={() => setError("")}>
           {error}

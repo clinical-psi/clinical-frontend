@@ -18,19 +18,19 @@ export function AvailableSlotPicker({
   specialistId,
   date,
   appointmentMode,
-  locationId,
+  locationHallId,
   selectedStart,
   onPick,
 }: {
   specialistId: string;
   date: string;
   appointmentMode: AppointmentMode;
-  locationId?: string;
+  locationHallId?: string;
   selectedStart: string;
   onPick: (start: string, end: string) => void;
 }) {
   const day = date.slice(0, 10);
-  const requestKey = [specialistId, day, appointmentMode, locationId].join("|");
+  const requestKey = [specialistId, day, appointmentMode, locationHallId].join("|");
   const [result, setResult] = useState<{
     key: string;
     slots: AvailableSlot[];
@@ -52,7 +52,7 @@ export function AvailableSlotPicker({
         toISOStringWithTimezone(start),
         toISOStringWithTimezone(end),
         appointmentMode,
-        appointmentMode === "INPERSON" ? locationId || undefined : undefined,
+        appointmentMode === "INPERSON" ? locationHallId || undefined : undefined,
       )
       .then((data) => {
         if (!cancelled) setResult({ key: requestKey, slots: data, error: "" });
@@ -65,7 +65,7 @@ export function AvailableSlotPicker({
     return () => {
       cancelled = true;
     };
-  }, [specialistId, day, appointmentMode, locationId, requestKey]);
+  }, [specialistId, day, appointmentMode, locationHallId, requestKey]);
 
   if (!specialistId || !day) return null;
 

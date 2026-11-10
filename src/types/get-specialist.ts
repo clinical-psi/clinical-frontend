@@ -3,6 +3,7 @@ export type Specialist = {
   firstName: string;
   lastName: string;
   shortName: string;
+  agendaColor?: string;
   user?: {
     userId: string;
     email?: string | null;
@@ -14,6 +15,7 @@ export type Specialist = {
 };
 
 export type SpecialistAppointment = {
+  status: import("../data/http/appointmentsApi").AppointmentStatus;
   id: string;
   appointmentStartDate: string;
   appointmentEndDate: string;
