@@ -159,6 +159,7 @@ export function PatientEditForm({
 
     const request: CreatePatientRequest = {
       ...patientForm,
+      email: patientForm.email?.trim() === "" ? null : patientForm.email,
       specialistId: canAssignSpecialist
         ? patientForm.specialistId || null
         : undefined,
