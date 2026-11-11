@@ -246,7 +246,8 @@ export function AppointmentViewModal({
               Tarifa
             </Text>
             <Text>
-              {appointment.feeAmount} {appointment.currencyCode}
+              {currencySymbol[appointment.currencyCode || "PEN"]}{" "}
+              {appointment.feeAmount}
             </Text>
           </div>
 
