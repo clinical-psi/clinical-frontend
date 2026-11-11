@@ -1,11 +1,11 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { MantineProvider } from "@mantine/core";
+import { MantineProvider, Modal } from "@mantine/core";
 import type { MantineThemeOverride } from "@mantine/core";
 import "@mantine/core/styles.css";
 import "./index.css";
 import App from "./App.tsx";
-import { ModalsProvider } from "@mantine/modals";
+import { FeedbackProvider } from "./components/feedback/FeedbackProvider";
 
 const theme: MantineThemeOverride = {
   primaryColor: "blue",
@@ -71,14 +71,28 @@ const theme: MantineThemeOverride = {
       "#000000", // 9
     ] as unknown as any,
   },
+  components: {
+    // Every modal in the app shares the same placement, shape, overlay and title style.
+    Modal: Modal.extend({
+      defaultProps: {
+        centered: true,
+        radius: "md",
+        padding: "lg",
+        overlayProps: { backgroundOpacity: 0.45, blur: 2 },
+      },
+      styles: {
+        title: { fontWeight: 600, fontSize: "var(--mantine-font-size-lg)" },
+      },
+    }),
+  },
 };
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <MantineProvider theme={theme}>
-      <ModalsProvider>
+      <FeedbackProvider>
         <App />
-      </ModalsProvider>
+      </FeedbackProvider>
     </MantineProvider>
   </StrictMode>,
 );

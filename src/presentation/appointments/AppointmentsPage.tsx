@@ -23,24 +23,29 @@ import {
   Title,
   Text,
   Button,
+  Badge,
+  Modal,
   Loader,
   LoadingOverlay,
   Alert,
   MultiSelect,
   Switch,
+  getContrastColor,
+  useMantineTheme,
 } from "@mantine/core";
-import { IconX } from "@tabler/icons-react";
-import Snackbar from "@mui/material/Snackbar";
-import MUIAlert from "@mui/material/Alert";
+import { IconHelpCircle, IconX } from "@tabler/icons-react";
+import { useToast } from "../../components/feedback/feedbackContext";
 import { specialistService } from "../../services/specialistService";
 import { locationService } from "../../services/locationService";
 import {
   type AppointmentMode,
   type Appointment,
+  type CreateAppointmentRequest,
   type FilterAppointmentsRequest,
+  type AppointmentStatus,
 } from "../../data/http/appointmentsApi";
 import type { Specialist } from "../../data/http/specialistsApi";
-import type { Location } from "../../data/http/locationsApi";
+import type { LocationHallOption } from "../../data/http/locationsApi";
 import {
   normalizeCalendarDateTime,
   calculateDateRange,
@@ -54,6 +59,8 @@ import { useOnceEffect } from "../../hooks/useOnceEffect";
 import { useRoles } from "../../hooks/useRoles";
 import { availabilityService } from "../../services/availabilityService";
 import { AvailabilityLegend } from "../availability/AvailabilityLegend";
+import type { AvailabilityCalendarEvent } from "../../types/availability";
+import { APPOINTMENT_STATUSES } from "./appointmentStatus";
 
 export function AppointmentsPage() {
   return (
@@ -180,10 +187,10 @@ export function TagInput({ tags, onChange }: TagInputProps) {
 
 const EMPTY_CREATE_FORM = {
   feeAmount: 120,
-  currencyCode: "PEN" as "PEN" | "USD" | "EUR",
+  currencyCode: "PEN",
   appointmentMode: "ONLINE" as AppointmentMode,
   specialistId: "",
-  locationId: "",
+  locationHallId: "",
   patientId: "",
   patientLabel: "",
   appointmentStartDate: "",
@@ -194,48 +201,62 @@ const EMPTY_CREATE_FORM = {
 };
 
 function AppointmentsCalendar() {
+  const theme = useMantineTheme();
   const [specialists, setSpecialists] = useState<Specialist[]>([]);
-  const [locations, setLocations] = useState<Location[]>([]);
+  const [locations, setLocations] = useState<LocationHallOption[]>([]);
   const [selectedSpecialistIds, setSelectedSpecialistIds] = useState<string[]>(
     [],
   );
   const [selectedModes, setSelectedModes] = useState<AppointmentMode[]>([]);
+  const [selectedStatuses, setSelectedStatuses] = useState<AppointmentStatus[]>(
+    [],
+  );
   const [calendarDateRange, setCalendarDateRange] = useState<{
     start: string;
     end: string;
   } | null>(null);
-  const [events, setEvents] = useState<
-    Array<{
-      id: string;
-      title: string;
-      start: string;
-      end: string;
-      extendedProps?: Record<string, unknown>;
-    }>
-  >([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(false);
-  const [availabilityEvents, setAvailabilityEvents] = useState<EventInput[]>(
-    [],
-  );
+  const [availabilityEvents, setAvailabilityEvents] = useState<
+    AvailabilityCalendarEvent[]
+  >([]);
   const [showAvailability, setShowAvailability] = useState(true);
+  const [showCalendarHelp, setShowCalendarHelp] = useState(false);
   const canViewAvailability = useRoles().can("availability.view");
   const [error, setError] = useState("");
   const [selectedAppointment, setSelectedAppointment] =
     useState<Appointment | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingAppointmentId, setEditingAppointmentId] = useState<
+    string | null
+  >(null);
+  const [editingLocation, setEditingLocation] =
+    useState<LocationHallOption | null>(null);
+  const [savingAppointment, setSavingAppointment] = useState(false);
   const [createFormData, setCreateFormData] = useState(EMPTY_CREATE_FORM);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [toastMessage, setToastMessage] = useState("");
-  const [toastSeverity, setToastSeverity] = useState<"success" | "error">(
-    "success",
-  );
-  const [showToast, setShowToast] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+  const toast = useToast();
+  const { isAdmin } = useRoles();
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setNow(Date.now());
+      setRefreshKey((value) => value + 1);
+    }, 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   // Load specialists and locations on mount
   useOnceEffect(() => {
     Promise.all([
-      specialistService.getAll().catch((err: Error) => {
+      (isAdmin
+        ? specialistService.getAll()
+        : availabilityService
+            .getMySpecialistProfile()
+            .then((profile) => [profile])
+      ).catch((err: Error) => {
         setError(err.message);
         return [];
       }),
@@ -249,25 +270,41 @@ function AppointmentsCalendar() {
     });
   });
 
-  function transformAppointments(appointments: Appointment[]) {
-    const calendarEvents = appointments.map((apt) => ({
-      id: apt.id,
-      title:
-        `${apt.patient?.firstName ?? ""} ${apt.patient?.lastName ?? ""}`.trim() ||
-        "Cita ocupada",
-      start: apt.appointmentStartDate,
-      end: apt.appointmentEndDate,
-      extendedProps: {
-        fullAppointment: apt,
-      },
-    }));
-    setEvents(calendarEvents);
-  }
+  const events = useMemo<EventInput[]>(
+    () =>
+      appointments.map((apt) => {
+        const color =
+          specialists.find((s) => String(s.id) === String(apt.specialist?.id))
+            ?.agendaColor ??
+          apt.specialist?.agendaColor ??
+          "#4C6EF5";
+        return {
+          id: apt.id,
+          title:
+            `${apt.patient?.firstName ?? ""} ${apt.patient?.lastName ?? ""}`.trim() ||
+            "Cita ocupada",
+          start: apt.appointmentStartDate,
+          end: apt.appointmentEndDate,
+          backgroundColor: color,
+          borderColor: color,
+          textColor: getContrastColor({ color, theme, autoContrast: true }),
+          display: "block",
+          classNames: [
+            "fc-saved-appointment",
+            `appointment-status-${apt.status.toLowerCase()}`,
+          ],
+          extendedProps: {
+            fullAppointment: apt,
+          },
+        };
+      }),
+    [appointments, specialists, theme],
+  );
 
   // Load appointments when date range or filters change
   useEffect(() => {
     if (!calendarDateRange) {
-      setEvents([]);
+      setAppointments([]);
       return;
     }
 
@@ -278,12 +315,23 @@ function AppointmentsCalendar() {
       endDate: normalizeCalendarDateTime(calendarDateRange.end),
       specialistIds: selectedSpecialistIds,
       appointmentModes: selectedModes,
+      statuses: selectedStatuses,
     };
 
     appointmentService
       .getByFilters(request)
       .then((appointments) => {
-        if (!cancelled) transformAppointments(appointments);
+        if (!cancelled) {
+          setAppointments(appointments);
+          setSelectedAppointment((current) =>
+            current
+              ? (appointments.find(
+                  (appointment) =>
+                    String(appointment.id) === String(current.id),
+                ) ?? current)
+              : null,
+          );
+        }
       })
       .catch((err: Error) => {
         if (!cancelled) setError(err.message);
@@ -296,9 +344,15 @@ function AppointmentsCalendar() {
     return () => {
       cancelled = true;
     };
-  }, [selectedSpecialistIds, selectedModes, calendarDateRange, refreshKey]);
+  }, [
+    selectedSpecialistIds,
+    selectedModes,
+    selectedStatuses,
+    calendarDateRange,
+    refreshKey,
+  ]);
 
-  // Disponibilidad y bloqueos como eventos de fondo (no clicables)
+  // La API comparte estos eventos con otros calendarios; la presentacion se adapta aqui.
   useEffect(() => {
     if (!calendarDateRange || !canViewAvailability || !showAvailability) {
       return;
@@ -314,19 +368,7 @@ function AppointmentsCalendar() {
       })
       .then((data) => {
         if (cancelled) return;
-        const names = new Map(
-          specialists.map((s) => [String(s.id), s.shortName || s.firstName]),
-        );
-        const showName = selectedSpecialistIds.length !== 1;
-        setAvailabilityEvents(
-          data.map((event) => ({
-            ...event,
-            title:
-              showName && names.has(event.resourceId)
-                ? `${event.title} · ${names.get(event.resourceId)}`
-                : event.title,
-          })),
-        );
+        setAvailabilityEvents(data);
       })
       .catch((err: Error) => {
         if (!cancelled) setError(err.message);
@@ -338,27 +380,78 @@ function AppointmentsCalendar() {
     calendarDateRange,
     selectedSpecialistIds,
     selectedModes,
-    specialists,
     canViewAvailability,
     showAvailability,
     refreshKey,
   ]);
 
+  const visibleSpecialists = useMemo(
+    () =>
+      specialists.filter(
+        (specialist) =>
+          selectedSpecialistIds.length === 0 ||
+          selectedSpecialistIds.includes(String(specialist.id)),
+      ),
+    [specialists, selectedSpecialistIds],
+  );
+
+  const specialistAvailabilityEvents = useMemo<EventInput[]>(
+    () =>
+      availabilityEvents.map((event) => {
+        const specialist = specialists.find(
+          (item) =>
+            String(item.id) === String(event.extendedProps.specialistId),
+        );
+        const color = specialist?.agendaColor ?? "#4C6EF5";
+        const name = specialist
+          ? specialist.shortName ||
+            `${specialist.firstName} ${specialist.lastName}`.trim()
+          : `Especialista ${event.extendedProps.specialistId}`;
+        const blocked = event.extendedProps.type === "BLOCKED";
+        return {
+          ...event,
+          id: `availability-${event.id}`,
+          title: `${name} · ${blocked ? "Bloqueado" : "Disponible"}`,
+          display: "block",
+          editable: false,
+          backgroundColor: `color-mix(in srgb, ${color} 8%, transparent)`,
+          borderColor: color,
+          textColor: "var(--ink)",
+          classNames: [
+            "fc-specialist-availability",
+            ...(blocked ? ["fc-specialist-availability-blocked"] : []),
+          ],
+          extendedProps: {
+            ...event.extendedProps,
+            specialistAvailability: true,
+          },
+        };
+      }),
+    [availabilityEvents, specialists],
+  );
+
   const combinedEvents = useMemo(
     () =>
       canViewAvailability && showAvailability
-        ? [...availabilityEvents, ...events]
+        ? [...specialistAvailabilityEvents, ...events]
         : events,
-    [availabilityEvents, events, canViewAvailability, showAvailability],
+    [
+      specialistAvailabilityEvents,
+      events,
+      canViewAvailability,
+      showAvailability,
+    ],
   );
 
   function handleSelectRange(selection: DateSelectArg) {
+    setEditingAppointmentId(null);
+    setEditingLocation(null);
     selection.view.calendar.unselect();
     const end = selection.allDay
       ? new Date(selection.start.getTime() + 60 * 60 * 1000)
       : selection.end;
-    setCreateFormData((prev) => ({
-      ...prev,
+    setCreateFormData(() => ({
+      ...EMPTY_CREATE_FORM,
       specialistId:
         selectedSpecialistIds.length === 1 ? selectedSpecialistIds[0] : "",
       appointmentStartDate: formatToDateTime(selection.start),
@@ -386,11 +479,13 @@ function AppointmentsCalendar() {
   }
 
   function handleOpenCreateModal() {
+    setEditingAppointmentId(null);
+    setEditingLocation(null);
     const nextAvailableHourStart = getNextAvailableHourOfDay(new Date());
     const nextAvailableHourEnd = new Date(nextAvailableHourStart);
     nextAvailableHourEnd.setHours(nextAvailableHourEnd.getHours() + 1);
-    setCreateFormData((prev) => ({
-      ...prev,
+    setCreateFormData(() => ({
+      ...EMPTY_CREATE_FORM,
       specialistId:
         selectedSpecialistIds.length === 1 ? selectedSpecialistIds[0] : "",
       appointmentStartDate: formatToDateTime(nextAvailableHourStart),
@@ -400,57 +495,106 @@ function AppointmentsCalendar() {
     setIsCreateModalOpen(true);
   }
 
+  function handleEditAppointment(appointment: Appointment) {
+    setEditingAppointmentId(appointment.id);
+    setEditingLocation(
+      appointment.locationHall
+        ? {
+            id: Number(appointment.locationHall.id),
+            locationId: appointment.locationHall.locationId,
+            name: appointment.locationHall.name ?? "Sede",
+            hallName: appointment.locationHall.hallName ?? "",
+          }
+        : null,
+    );
+    setCreateFormData({
+      ...EMPTY_CREATE_FORM,
+      patientId: String(appointment.patient?.id ?? ""),
+      patientLabel:
+        `${appointment.patient?.firstName ?? ""} ${appointment.patient?.lastName ?? ""}`.trim(),
+      specialistId: String(appointment.specialist?.id ?? ""),
+      locationHallId: String(appointment.locationHall?.id ?? ""),
+      appointmentMode: appointment.appointmentMode,
+      appointmentStartDate: formatToDateTime(
+        new Date(appointment.appointmentStartDate),
+      ),
+      appointmentEndDate: formatToDateTime(
+        new Date(appointment.appointmentEndDate),
+      ),
+      feeAmount: Number(appointment.feeAmount ?? 0),
+      currencyCode: appointment.currencyCode ?? "PEN",
+      notes: appointment.notes ?? "",
+      paidIndicator: appointment.paidIndicator ?? false,
+    });
+    setIsViewModalOpen(false);
+    setSelectedAppointment(null);
+    setIsCreateModalOpen(true);
+  }
+
   function handleSaveAppointment(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (savingAppointment) return;
     const f = createFormData;
 
     if (!f.patientId) {
-      setToastMessage("Selecciona un paciente");
-      setToastSeverity("error");
-      setShowToast(true);
+      toast.error("Selecciona un paciente");
       return;
     }
     if (new Date(f.appointmentEndDate) <= new Date(f.appointmentStartDate)) {
-      setToastMessage("La fecha de fin debe ser posterior al inicio");
-      setToastSeverity("error");
-      setShowToast(true);
+      toast.error("La fecha de fin debe ser posterior al inicio");
       return;
     }
 
-    appointmentService
-      .create(f.patientId, {
-        specialistId: f.specialistId,
-        locationId:
-          f.appointmentMode === "INPERSON"
-            ? f.locationId || undefined
-            : undefined,
-        appointmentMode: f.appointmentMode,
-        appointmentStartDate: normalizeCalendarDateTime(f.appointmentStartDate),
-        appointmentEndDate: normalizeCalendarDateTime(f.appointmentEndDate),
-        feeAmount: String(f.feeAmount),
-        currencyCode: f.currencyCode,
-        notes: f.notes || undefined,
-        paidIndicator: f.paidIndicator,
-      })
+    const request: CreateAppointmentRequest = {
+      specialistId: f.specialistId,
+      locationHallId:
+        f.appointmentMode === "INPERSON"
+          ? f.locationHallId || undefined
+          : undefined,
+      appointmentMode: f.appointmentMode,
+      appointmentStartDate: normalizeCalendarDateTime(f.appointmentStartDate),
+      appointmentEndDate: normalizeCalendarDateTime(f.appointmentEndDate),
+      feeAmount: String(f.feeAmount),
+      currencyCode: f.currencyCode,
+      notes: f.notes || undefined,
+      paidIndicator: f.paidIndicator,
+    };
+    setSavingAppointment(true);
+    const save = editingAppointmentId
+      ? appointmentService.update(editingAppointmentId, request)
+      : appointmentService.create(f.patientId, request);
+    save
       .then(() => {
-        setToastMessage("Cita creada exitosamente");
-        setToastSeverity("success");
-        setShowToast(true);
+        toast.success(
+          editingAppointmentId
+            ? "Cita actualizada satisfactoriamente"
+            : "Cita creada satisfactoriamente",
+        );
         setIsCreateModalOpen(false);
         setCreateFormData(EMPTY_CREATE_FORM);
+        setEditingAppointmentId(null);
+        setEditingLocation(null);
         setRefreshKey((k) => k + 1);
       })
       .catch((err: Error) => {
-        setToastMessage(err.message);
-        setToastSeverity("error");
-        setShowToast(true);
-      });
+        toast.error(err.message);
+      })
+      .finally(() => setSavingAppointment(false));
   }
 
   const specialistOptions = specialists.map((s) => ({
-    value: s.id,
+    value: String(s.id),
     label: `${s.firstName} ${s.lastName}`,
   }));
+  const pendingClosure = appointments.filter(
+    (appointment) =>
+      (appointment.status === "SCHEDULED" ||
+        appointment.status === "CONFIRMED") &&
+      new Date(appointment.appointmentEndDate).getTime() <= now &&
+      appointment.allowedActions.some(
+        (action) => action === "COMPLETE" || action === "NO_SHOW",
+      ),
+  );
 
   return (
     <Stack gap="lg">
@@ -465,6 +609,7 @@ function AppointmentsCalendar() {
         <Group grow mb="md">
           <MultiSelect
             label="Especialistas"
+            className="text-field"
             placeholder="Selecciona especialistas"
             data={specialistOptions}
             value={selectedSpecialistIds}
@@ -475,6 +620,7 @@ function AppointmentsCalendar() {
 
           <MultiSelect
             label="Tipo de Sesión"
+            className="text-field"
             placeholder="Selecciona tipo de sesión"
             data={[
               { value: "ONLINE", label: "Virtual" },
@@ -484,10 +630,22 @@ function AppointmentsCalendar() {
             onChange={(value) => setSelectedModes(value as AppointmentMode[])}
             clearable
           />
+          <MultiSelect
+            label="Estados"
+            className="text-field"
+            placeholder="Selecciona estados"
+            data={Object.entries(APPOINTMENT_STATUSES).map(([value, item]) => ({
+              value,
+              label: item.label,
+            }))}
+            value={selectedStatuses}
+            onChange={(values) =>
+              setSelectedStatuses(values as AppointmentStatus[])
+            }
+          />
         </Group>
-
-        {canViewAvailability && (
-          <Group justify="space-between" gap="sm" mb="md" wrap="wrap">
+        <Group justify="space-between" gap="sm" mb="md" wrap="wrap">
+          {canViewAvailability && (
             <Switch
               label="Mostrar disponibilidad y bloqueos"
               checked={showAvailability}
@@ -495,14 +653,90 @@ function AppointmentsCalendar() {
                 setShowAvailability(event.currentTarget.checked)
               }
             />
-            {showAvailability && <AvailabilityLegend />}
-          </Group>
-        )}
+          )}
+          <Button
+            variant="subtle"
+            size="xs"
+            leftSection={<IconHelpCircle size={16} />}
+            onClick={() => setShowCalendarHelp(true)}
+          >
+            Ayuda del calendario
+          </Button>
+        </Group>
 
         <Button onClick={handleOpenCreateModal} fullWidth>
           Agendar Cita
         </Button>
       </Paper>
+      <Modal
+        opened={showCalendarHelp}
+        onClose={() => setShowCalendarHelp(false)}
+        title="Ayuda del calendario"
+        size="lg"
+      >
+        <Stack gap="lg">
+          <Stack gap="xs">
+            <Text fw={600}>Estados de las citas</Text>
+            <Group gap="xs">
+              {Object.entries(APPOINTMENT_STATUSES).map(([value, item]) => (
+                <Badge key={value} variant="light" color={item.color}>
+                  {item.marker} {item.label}
+                </Badge>
+              ))}
+            </Group>
+            <Text size="sm" c="dimmed">
+              Las citas canceladas se consideran eliminadas. Selecciona
+              «Cancelada» en Estados para consultarlas.
+            </Text>
+          </Stack>
+          {canViewAvailability && (
+            <Stack gap="xs">
+              <Text fw={600}>Disponibilidad y colores de agendas</Text>
+              <Text size="sm" c="dimmed">
+                Cada color identifica la agenda de un especialista según los
+                filtros seleccionados.
+              </Text>
+              <AvailabilityLegend specialists={visibleSpecialists} />
+            </Stack>
+          )}
+          <Group justify="flex-end">
+            <Button
+              variant="default"
+              onClick={() => setShowCalendarHelp(false)}
+            >
+              Cerrar
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+      {pendingClosure.length > 0 && (
+        <Paper p="md" radius="md" withBorder>
+          <Stack gap="sm">
+            <Text fw={600}>
+              Citas por cerrar en el período visible ({pendingClosure.length})
+            </Text>
+            {pendingClosure.map((appointment) => (
+              <Group key={appointment.id} justify="space-between">
+                <Text size="sm">
+                  {new Date(appointment.appointmentStartDate).toLocaleString()}{" "}
+                  · {appointment.patient?.firstName}{" "}
+                  {appointment.patient?.lastName}
+                </Text>
+                <Button
+                  size="xs"
+                  variant="light"
+                  onClick={() => {
+                    setSelectedAppointment(appointment);
+                    setIsViewModalOpen(true);
+                  }}
+                >
+                  Resolver cita
+                </Button>
+              </Group>
+            ))}
+          </Stack>
+        </Paper>
+      )}
 
       {/* Calendar */}
       {/* No desmontar el calendario: perderia la vista activa y re-dispararia datesSet */}
@@ -534,11 +768,59 @@ function AppointmentsCalendar() {
               slotMaxTime="24:00:00"
               height="auto"
               events={combinedEvents}
+              slotEventOverlap={!(canViewAvailability && showAvailability)}
               selectMirror={true}
               selectable={true}
               select={handleSelectRange}
               datesSet={handleDatesSet}
               eventClick={handleEventClick}
+              displayEventEnd
+              eventTimeFormat={{
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: false,
+              }}
+              eventContent={(info) => {
+                if (info.event.extendedProps.specialistAvailability) {
+                  return (
+                    <div className="specialist-availability-content">
+                      <span>{info.event.title}</span>
+                      <span className="specialist-availability-time">
+                        {info.timeText}
+                      </span>
+                      {info.event.extendedProps.reason && (
+                        <span>{String(info.event.extendedProps.reason)}</span>
+                      )}
+                    </div>
+                  );
+                }
+                const appointment = info.event.extendedProps.fullAppointment as
+                  | Appointment
+                  | undefined;
+                if (!appointment) return;
+                const online = appointment.appointmentMode === "ONLINE";
+                const status = APPOINTMENT_STATUSES[appointment.status];
+                return (
+                  <div
+                    className="appointment-content"
+                    title={`${info.timeText} · ${info.event.title} · ${online ? "Virtual" : "Presencial"} · ${status.label}`}
+                  >
+                    <span className="appointment-time">{info.timeText}</span>
+                    <span className="appointment-name">
+                      <span
+                        className="appointment-mode"
+                        aria-label={online ? "Virtual" : "Presencial"}
+                      >
+                        {online ? "V" : "P"}
+                      </span>{" "}
+                      {info.event.title}
+                    </span>
+                    <span className="appointment-status-label">
+                      {status.marker} {status.label}
+                    </span>
+                  </div>
+                );
+              }}
             />
           </div>
         </Paper>
@@ -548,6 +830,11 @@ function AppointmentsCalendar() {
       {selectedAppointment && isViewModalOpen && (
         <AppointmentViewModal
           appointment={selectedAppointment}
+          onEdit={() => handleEditAppointment(selectedAppointment)}
+          onChanged={(updated) => {
+            setSelectedAppointment(updated);
+            setRefreshKey((k) => k + 1);
+          }}
           onClose={() => {
             setIsViewModalOpen(false);
             setSelectedAppointment(null);
@@ -557,28 +844,30 @@ function AppointmentsCalendar() {
 
       {/* Create Appointment Modal */}
       <CreateAppointmentModal
+        key={editingAppointmentId ?? "create"}
         open={isCreateModalOpen}
+        editing={editingAppointmentId !== null}
+        saving={savingAppointment}
         specialists={specialists}
-        locations={locations}
+        locations={
+          editingLocation &&
+          !locations.some(
+            (location) => String(location.id) === String(editingLocation.id),
+          )
+            ? [...locations, editingLocation]
+            : locations
+        }
         formData={createFormData}
         onFormDataChange={setCreateFormData}
         onClose={() => {
+          if (savingAppointment) return;
           setIsCreateModalOpen(false);
+          setEditingAppointmentId(null);
+          setEditingLocation(null);
           setCreateFormData(EMPTY_CREATE_FORM);
         }}
         onSubmit={handleSaveAppointment}
       />
-
-      {/* Toast Notifications */}
-      <Snackbar
-        open={showToast}
-        autoHideDuration={4000}
-        onClose={() => setShowToast(false)}
-      >
-        <MUIAlert severity={toastSeverity} onClose={() => setShowToast(false)}>
-          {toastMessage}
-        </MUIAlert>
-      </Snackbar>
     </Stack>
   );
 }
@@ -586,4 +875,6 @@ function AppointmentsCalendar() {
 export interface AppointmentViewModalProps {
   appointment: Appointment;
   onClose: () => void;
+  onEdit: () => void;
+  onChanged: (appointment: Appointment) => void;
 }

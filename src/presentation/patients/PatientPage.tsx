@@ -20,6 +20,7 @@ import { patientService } from "../../services/patientService";
 import type { GetPatient } from "../../types/get-patient";
 import { PatientEditForm } from "./PatientEditForm";
 import { PATIENT_STATUS_STYLES } from "../../util/constants";
+import { useConfirm, useToast } from "../../components/feedback/feedbackContext";
 
 export function PatientPage() {
   const { roleNames, can } = useRoles();
@@ -32,6 +33,8 @@ export function PatientPage() {
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editingPatientId, setEditingPatientId] = useState<string | null>(null);
+  const toast = useToast();
+  const confirm = useConfirm();
 
   const patientPageSize = 10;
   const totalPages = Math.ceil(patientTotal / patientPageSize);
@@ -64,33 +67,27 @@ export function PatientPage() {
     setShowForm(true);
   }
 
-  async function handlePatientDeactivate(patient: GetPatient) {
+  function handlePatientDeactivate(patient: GetPatient) {
     const patientId = patient.id ?? patient.patientId;
-    if (
-      !patientId ||
-      !window.confirm(
-        `¿Deseas dar de baja a ${patient.firstName} ${patient.lastName}?`,
-      )
-    )
-      return;
-
-    try {
-      await patientService.deactivate(patientId);
-      const refreshedPage = await patientService.getAll(
-        roleNames,
-        patientNameFilter,
-        patientPage - 1,
-        patientPageSize,
-      );
-      setPatients(refreshedPage.content);
-      setPatientTotal(refreshedPage.totalElements);
-    } catch (requestError) {
-      setError(
-        requestError instanceof Error
-          ? requestError.message
-          : "No se pudo dar de baja al paciente",
-      );
-    }
+    if (!patientId) return;
+    void confirm({
+      title: "Dar de baja paciente",
+      message: `¿Deseas dar de baja a ${patient.firstName} ${patient.lastName}?`,
+      confirmLabel: "Dar de baja",
+      destructive: true,
+      onConfirm: async () => {
+        await patientService.deactivate(patientId);
+        toast.success("Paciente dado de baja satisfactoriamente");
+        const refreshedPage = await patientService.getAll(
+          roleNames,
+          patientNameFilter,
+          patientPage - 1,
+          patientPageSize,
+        );
+        setPatients(refreshedPage.content);
+        setPatientTotal(refreshedPage.totalElements);
+      },
+    });
   }
 
   if (showForm) {

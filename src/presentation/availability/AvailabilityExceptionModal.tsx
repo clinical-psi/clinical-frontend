@@ -1,8 +1,6 @@
 import { useState, type FormEvent } from "react";
 import {
   Alert,
-  Button,
-  Group,
   Modal,
   SegmentedControl,
   Select,
@@ -12,7 +10,8 @@ import {
   Text,
   TextInput,
 } from "@mantine/core";
-import type { Location } from "../../data/http/locationsApi";
+import { ModalActions } from "../../components/feedback/ModalActions";
+import { formatLocationLabel, type LocationHallOption } from "../../data/http/locationsApi";
 import type {
   AvailabilityException,
   AvailabilityExceptionRequest,
@@ -39,7 +38,7 @@ type FormState = {
   endDateTime: string;
   reason: string;
   appointmentMode: "" | AppointmentMode;
-  locationId: string;
+  locationHallId: string;
   slotMinutes: string;
 };
 
@@ -60,7 +59,7 @@ function initialState(
       endDateTime: toDateTimeInput(end),
       reason: exception.reason ?? "",
       appointmentMode: exception.appointmentMode ?? "",
-      locationId: exception.locationId ? String(exception.locationId) : "",
+      locationHallId: exception.locationHallId ? String(exception.locationHallId) : "",
       slotMinutes: String(exception.slotMinutes ?? 60),
     };
   }
@@ -78,7 +77,7 @@ function initialState(
     endDateTime: toDateTimeInput(onePm),
     reason: "",
     appointmentMode: "",
-    locationId: "",
+    locationHallId: "",
     slotMinutes: "60",
     ...defaults,
   };
@@ -97,7 +96,7 @@ function toRequest(form: FormState): AvailabilityExceptionRequest {
       : toISOStringWithTimezone(new Date(form.endDateTime)),
     reason: form.reason,
     appointmentMode: extra ? form.appointmentMode || null : null,
-    locationId: extra && form.locationId ? Number(form.locationId) : null,
+    locationHallId: extra && form.locationHallId ? Number(form.locationHallId) : null,
     slotMinutes: extra ? Number(form.slotMinutes) : null,
   };
 }
@@ -130,7 +129,7 @@ export function AvailabilityExceptionModal({
   opened: boolean;
   exception?: AvailabilityException | null;
   defaults?: Partial<FormState>;
-  locations: Location[];
+  locations: LocationHallOption[];
   onClose: () => void;
   onSubmit: (request: AvailabilityExceptionRequest) => Promise<void>;
 }) {
@@ -146,13 +145,12 @@ export function AvailabilityExceptionModal({
 
   const locationOptions = locations.map((location) => ({
     value: String(location.id),
-    label: location.hallName
-      ? `${location.name} · ${location.hallName}`
-      : location.name,
+    label: formatLocationLabel(location),
   }));
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (submitting) return;
     const validation = validate(form);
     if (validation) {
       setError(validation);
@@ -174,10 +172,12 @@ export function AvailabilityExceptionModal({
   return (
     <Modal
       opened={opened}
-      onClose={onClose}
+      onClose={() => { if (!submitting) onClose(); }}
       title={exception ? "Editar excepción" : "Nueva excepción"}
       size="lg"
-      centered
+      closeOnClickOutside={!submitting}
+      closeOnEscape={!submitting}
+      withCloseButton={!submitting}
     >
       <form onSubmit={handleSubmit} noValidate>
         <Stack gap="md">
@@ -271,17 +271,17 @@ export function AvailabilityExceptionModal({
                   setForm((prev) => ({
                     ...prev,
                     appointmentMode: mode,
-                    locationId: mode === "ONLINE" ? "" : prev.locationId,
+                    locationHallId: mode === "ONLINE" ? "" : prev.locationHallId,
                   }));
                 }}
                 allowDeselect={false}
               />
               <Select
-                label="Sede"
-                placeholder="Cualquier sede"
+                label="Sede y sala"
+                placeholder="Cualquier sede y sala"
                 data={locationOptions}
-                value={form.locationId || null}
-                onChange={(value) => set("locationId", value ?? "")}
+                value={form.locationHallId || null}
+                onChange={(value) => set("locationHallId", value ?? "")}
                 disabled={form.appointmentMode === "ONLINE"}
                 clearable
               />
@@ -301,14 +301,11 @@ export function AvailabilityExceptionModal({
             </Alert>
           )}
 
-          <Group justify="flex-end" gap="sm">
-            <Button variant="default" onClick={onClose} disabled={submitting}>
-              Cancelar
-            </Button>
-            <Button type="submit" loading={submitting}>
-              {exception ? "Guardar cambios" : "Crear excepción"}
-            </Button>
-          </Group>
+          <ModalActions
+            onCancel={onClose}
+            submitLabel={exception ? "Guardar cambios" : "Crear excepción"}
+            loading={submitting}
+          />
         </Stack>
       </form>
     </Modal>

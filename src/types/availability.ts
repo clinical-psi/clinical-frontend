@@ -13,7 +13,7 @@ export interface AvailabilityRule {
   startTime: string;
   endTime: string;
   appointmentMode?: AppointmentMode | null;
-  locationId?: number | null;
+  locationHallId?: number | null;
   slotMinutes?: number | null;
   bufferMinutes?: number | null;
   validFrom?: string | null;
@@ -28,7 +28,7 @@ export interface AvailabilityExceptionRequest {
   allDay?: boolean;
   reason?: string;
   appointmentMode?: AppointmentMode | null;
-  locationId?: number | null;
+  locationHallId?: number | null;
   slotMinutes?: number | null;
   timeZone?: string | null;
 }
@@ -42,7 +42,7 @@ export interface AvailabilityException {
   allDay: boolean;
   reason?: string;
   appointmentMode?: AppointmentMode;
-  locationId?: number;
+  locationHallId?: number;
   slotMinutes?: number;
   overlappingAppointments: number;
 }
@@ -52,7 +52,7 @@ export interface AvailableSlot {
   start: string;
   end: string;
   appointmentMode?: AppointmentMode;
-  locationId?: number;
+  locationHallId?: number;
 }
 
 /** Evento de fondo listo para FullCalendar (EventInput). */
@@ -81,5 +81,5 @@ export interface AvailabilityCalendarFilter {
   end: string;
   specialistIds?: string[];
   appointmentMode?: AppointmentMode;
-  locationId?: string;
+  locationHallId?: string;
 }

@@ -27,6 +27,9 @@ import {
   type ProgressNoteInput,
 } from "../../types/clinical-record";
 import type { PatientAppointment } from "../../types/get-patient";
+import { APPOINTMENT_STATUSES } from "../appointments/appointmentStatus";
+import { useConfirm, useToast } from "../../components/feedback/feedbackContext";
+import { ModalActions } from "../../components/feedback/ModalActions";
 
 type Props = { patientId: string; section: "anamnesis" | "progress" };
 
@@ -87,7 +90,6 @@ export function PatientClinicalRecord({ patientId, section }: Props) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editor, setEditor] = useState<{
     record: Anamnesis | null;
@@ -97,11 +99,8 @@ export function PatientClinicalRecord({ patientId, section }: Props) {
   const [dirty, setDirty] = useState(false);
   const [revisions, setRevisions] = useState<Anamnesis[] | null>(null);
   const [noteEditor, setNoteEditor] = useState<ProgressNoteInput | null>(null);
-  const [confirmation, setConfirmation] = useState<{
-    title: string;
-    message: string;
-    run: () => Promise<void>;
-  } | null>(null);
+  const toast = useToast();
+  const confirm = useConfirm();
   const selected = records.find((record) => String(record.id) === selectedId);
 
   const load = useCallback(async () => {
@@ -178,7 +177,6 @@ export function PatientClinicalRecord({ patientId, section }: Props) {
   async function perform(action: () => Promise<void>) {
     setBusy(true);
     setError("");
-    setNotice("");
     try {
       await action();
     } catch (error) {
@@ -188,9 +186,39 @@ export function PatientClinicalRecord({ patientId, section }: Props) {
     }
   }
 
+  function requestConfirmation({ title, message, run }: {
+    title: string;
+    message: string;
+    run: () => Promise<void>;
+  }) {
+    setError("");
+    void confirm({
+      title,
+      message,
+      onConfirm: async () => {
+        setBusy(true);
+        try {
+          await run();
+        } finally {
+          setBusy(false);
+        }
+      },
+    });
+  }
+
+  function discardNote() {
+    requestConfirmation({
+      title: "Descartar nota",
+      message: "La nota no se ha guardado. ¿Deseas descartarla?",
+      run: async () => {
+        setNoteEditor(null);
+      },
+    });
+  }
+
   function closeEditor() {
     if (dirty) {
-      setConfirmation({
+      requestConfirmation({
         title: "Descartar cambios",
         message: "Hay cambios sin guardar. ¿Deseas descartarlos?",
         run: async () => {
@@ -204,7 +232,7 @@ export function PatientClinicalRecord({ patientId, section }: Props) {
   }
 
   async function saveDraft() {
-    if (!editor) return;
+    if (!editor || busy) return;
     await perform(async () => {
       const input = {
         assessmentDate: editor.assessmentDate,
@@ -223,7 +251,7 @@ export function PatientClinicalRecord({ patientId, section }: Props) {
       setSelectedId(String(saved.id));
       setEditor(null);
       setDirty(false);
-      setNotice("Borrador guardado.");
+      toast.success("Borrador guardado.");
     });
   }
 
@@ -264,7 +292,7 @@ export function PatientClinicalRecord({ patientId, section }: Props) {
 
   const appointmentOptions = appointments.map((appointment) => ({
     value: String(appointment.id),
-    label: `${new Date(appointment.appointmentStartDate).toLocaleString()}${appointment.specialistShortName ? ` - ${appointment.specialistShortName}` : ""}`,
+    label: `${new Date(appointment.appointmentStartDate).toLocaleString()}${appointment.specialistShortName ? ` - ${appointment.specialistShortName}` : ""} · ${APPOINTMENT_STATUSES[appointment.status].label}`,
   }));
   if (
     noteEditor?.appointmentId &&
@@ -285,7 +313,6 @@ export function PatientClinicalRecord({ patientId, section }: Props) {
           {error}
         </Alert>
       )}
-      {notice && <Alert color="green">{notice}</Alert>}
       <Group justify="space-between">
         <Title order={3}>
           {section === "anamnesis"
@@ -408,7 +435,7 @@ export function PatientClinicalRecord({ patientId, section }: Props) {
                             color="teal"
                             disabled={busy}
                             onClick={() =>
-                              setConfirmation({
+                              requestConfirmation({
                                 title: "Finalizar anamnesis",
                                 message:
                                   "El registro quedará bloqueado. Cualquier corrección posterior será una enmienda y conservará el original.",
@@ -424,7 +451,7 @@ export function PatientClinicalRecord({ patientId, section }: Props) {
                                       record.id === result.id ? result : record,
                                     ),
                                   );
-                                  setNotice("Anamnesis finalizada.");
+                                  toast.success("Anamnesis finalizada.");
                                 },
                               })
                             }
@@ -437,7 +464,7 @@ export function PatientClinicalRecord({ patientId, section }: Props) {
                         <Button
                           disabled={busy}
                           onClick={() =>
-                            setConfirmation({
+                            requestConfirmation({
                               title: "Crear enmienda",
                               message:
                                 "Se creará un borrador basado en esta evaluación, sin modificar el registro finalizado.",
@@ -450,7 +477,7 @@ export function PatientClinicalRecord({ patientId, section }: Props) {
                                   );
                                 setRecords((current) => [result, ...current]);
                                 setSelectedId(String(result.id));
-                                setNotice("Enmienda creada como borrador.");
+                                toast.success("Enmienda creada como borrador.");
                               },
                             })
                           }
@@ -591,29 +618,18 @@ export function PatientClinicalRecord({ patientId, section }: Props) {
                   </Accordion.Item>
                 ))}
               </Accordion>
-              <Group justify="flex-end">
-                <Button variant="default" disabled={busy} onClick={closeEditor}>
-                  Cancelar
-                </Button>
-                <Button type="submit" loading={busy}>
-                  Guardar borrador
-                </Button>
-              </Group>
+              <ModalActions
+                onCancel={closeEditor}
+                submitLabel="Guardar borrador"
+                loading={busy}
+              />
             </Stack>
           </form>
         )}
       </Modal>
       <Modal
         opened={!!noteEditor}
-        onClose={() => {
-          setConfirmation({
-            title: "Descartar nota",
-            message: "La nota no se ha guardado. ¿Deseas descartarla?",
-            run: async () => {
-              setNoteEditor(null);
-            },
-          });
-        }}
+        onClose={discardNote}
         title={
           noteEditor?.correctsNoteId
             ? "Corrección de nota de evolución"
@@ -628,6 +644,7 @@ export function PatientClinicalRecord({ patientId, section }: Props) {
           <form
             onSubmit={(event) => {
               event.preventDefault();
+              if (busy) return;
               if (!PROGRESS_FIELDS.some(([key]) => noteEditor[key].trim())) {
                 setError("Completa al menos un apartado clínico de la nota.");
                 return;
@@ -639,7 +656,7 @@ export function PatientClinicalRecord({ patientId, section }: Props) {
                 );
                 setNotes((current) => [saved, ...current]);
                 setNoteEditor(null);
-                setNotice("Nota de evolución registrada.");
+                toast.success("Nota de evolución registrada.");
               });
             }}
           >
@@ -714,13 +731,12 @@ export function PatientClinicalRecord({ patientId, section }: Props) {
                   }
                 />
               ))}
-              <Button
-                type="submit"
+              <ModalActions
+                onCancel={discardNote}
+                submitLabel="Registrar nota definitiva"
                 loading={busy}
                 disabled={!noteEditor.appointmentId}
-              >
-                Registrar nota definitiva
-              </Button>
+              />
             </Stack>
           </form>
         )}
@@ -746,40 +762,6 @@ export function PatientClinicalRecord({ patientId, section }: Props) {
               <AnamnesisContent fields={revision.fields} />
             </Paper>
           ))}
-        </Stack>
-      </Modal>
-      <Modal
-        opened={!!confirmation}
-        onClose={() => !busy && setConfirmation(null)}
-        title={confirmation?.title}
-        closeOnClickOutside={!busy}
-        closeOnEscape={!busy}
-        withCloseButton={!busy}
-      >
-        <Stack>
-          <Text>{confirmation?.message}</Text>
-          {error && <Alert color="red">{error}</Alert>}
-          <Group justify="flex-end">
-            <Button
-              variant="default"
-              disabled={busy}
-              onClick={() => setConfirmation(null)}
-            >
-              Cancelar
-            </Button>
-            <Button
-              loading={busy}
-              onClick={() => {
-                if (confirmation)
-                  void perform(async () => {
-                    await confirmation.run();
-                    setConfirmation(null);
-                  });
-              }}
-            >
-              Confirmar
-            </Button>
-          </Group>
         </Stack>
       </Modal>
     </Stack>

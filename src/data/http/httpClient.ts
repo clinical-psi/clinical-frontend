@@ -84,10 +84,12 @@ export async function get<T>(
   return parseBody<T>(response);
 }
 
-export async function post<T>(path: string, data: unknown): Promise<T> {
+export async function post<T>(
+  path: string, data: unknown, options?: { authenticated?: boolean },
+): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: "POST",
-    headers: getAuthHeaders(),
+    headers: options?.authenticated === false ? { "Content-Type": "application/json" } : getAuthHeaders(),
     body: JSON.stringify(data),
   });
 

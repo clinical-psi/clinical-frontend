@@ -1,10 +1,21 @@
-import type { LoginCredentials, AuthResponse } from "../../types/auth";
+import type { LoginCredentials, LoginResponse, AuthResponse, RegistrationRequest } from "../../types/auth";
 import { post } from "./httpClient";
+
+export const registerUser = (request: RegistrationRequest) =>
+  post<void>("/auth/register", request, { authenticated: false });
+
+export const currentSession = () => post<AuthResponse>("/auth/session", {});
+
+export type InvitationPreview = { clinicName: string; email: string; existingAccount: boolean };
+export const previewSpecialistInvitation = (token: string) =>
+  post<InvitationPreview>("/auth/specialist-invitations/preview", { token }, { authenticated: false });
+export const acceptSpecialistInvitation = (token: string, password: string) =>
+  post<void>("/auth/specialist-invitations/accept", { token, password }, { authenticated: false });
 
 export async function loginUser(
   credentials: LoginCredentials,
-): Promise<AuthResponse> {
-  return post<AuthResponse>("/auth/login", credentials);
+): Promise<LoginResponse> {
+  return post<LoginResponse>("/auth/login", credentials, { authenticated: false });
 }
 
 export async function changePassword(

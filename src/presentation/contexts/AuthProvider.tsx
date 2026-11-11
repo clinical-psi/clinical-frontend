@@ -29,14 +29,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (credentials: LoginCredentials) => {
     const response = await authService.login(credentials);
-    setUser(response);
-    setIsAuthenticated(true);
+    if ("token" in response && response.token) {
+      setUser(response);
+      setIsAuthenticated(true);
+    }
+    return response;
   };
 
   const logout = () => {
     authService.logout();
     setUser(null);
     setIsAuthenticated(false);
+  };
+
+  const refreshSession = async () => {
+    const response = await authService.refreshSession();
+    setUser(response);
+    setIsAuthenticated(true);
   };
 
   const markPasswordChanged = () => {
@@ -62,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     logout,
     markPasswordChanged,
+    refreshSession,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

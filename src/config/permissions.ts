@@ -4,6 +4,7 @@ import type { FeatureFlag } from "./features";
 export type MenuItemId =
   | "patients"
   | "specialists"
+  | "locations"
   | "appointments"
   | "availability"
   | "settings";
@@ -29,18 +30,19 @@ export const MENU_ITEMS: MenuItem[] = [
     roles: [...STAFF, ROLES.SPECIALIST],
   },
   { id: "specialists", label: "Especialistas", icon: "E", roles: STAFF },
+  { id: "locations", label: "Sedes", icon: "S", roles: [ROLES.TENANT_ADMIN] },
   {
     id: "appointments",
     label: "Citas",
     icon: "C",
-    roles: [],
+    roles: [...STAFF, ROLES.SPECIALIST],
     feature: "scheduling",
   },
   {
     id: "availability",
     label: "Mi disponibilidad",
     icon: "D",
-    roles: [],
+    roles: [ROLES.SPECIALIST],
     feature: "scheduling",
   },
   { id: "settings", label: "Configuración", icon: "⚙", roles: STAFF },
@@ -54,6 +56,8 @@ export const PERMISSIONS = {
   "patients.deactivate": STAFF,
   "patients.assignSpecialist": STAFF,
   "settings.users": ADMINS,
+  "specialists.access": ADMINS,
+  "locations.manage": [ROLES.TENANT_ADMIN],
   "availability.manage": ADMINS,
   "availability.view": [...ADMINS, ROLES.SPECIALIST],
   "settings.changePassword": [...STAFF, ROLES.SPECIALIST],

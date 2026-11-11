@@ -16,7 +16,7 @@ export type CreateAppointment = {
   appointmentStartDate: string;
   appointmentEndDate: string;
   notes?: string;
-  locationId?: number;
+  locationHallId?: number;
   appointmentMode?: string;
 };
 
@@ -30,7 +30,7 @@ export type CreatePatientRequest = {
   specialistId?: string | null;
   firstName: string;
   lastName: string;
-  email?: string;
+  email: string | null;
   birthdate?: string | null;
   notes?: string;
   phoneNumber?: string;
@@ -40,7 +40,7 @@ export type CreatePatientRequest = {
     notes?: string;
     appointmentNumber: number;
     specialistId: number;
-    locationId?: number;
+    locationHallId?: number;
     appointmentMode?: string;
     appointments: CreateAppointment[];
   }>;

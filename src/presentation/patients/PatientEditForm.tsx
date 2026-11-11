@@ -24,8 +24,7 @@ import {
   Badge,
 } from "@mantine/core";
 import { IconPlus, IconTrash, IconUserShield } from "@tabler/icons-react";
-import Snackbar from "@mui/material/Snackbar";
-import MUIAlert from "@mui/material/Alert";
+import { useToast } from "../../components/feedback/feedbackContext";
 import { patientService } from "../../services/patientService";
 import type { CreatePatientRequest } from "../../types/create-patient";
 import { emergencyContactService } from "../../services/emergencyContactService";
@@ -52,13 +51,13 @@ export function PatientEditForm({
   const [error, setError] = useState("");
   const [showValidationErrors, setShowValidationErrors] = useState(false); // Para disparar los errores en los inputs
   const [saving, setSaving] = useState(false);
-  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const toast = useToast();
   const [isPhoneValid, setIsPhoneValid] = useState(false);
   const [isChangeStatusModalOpen, setIsChangeStatusModalOpen] = useState(false);
   const [patientForm, setPatientForm] = useState({
     firstName: "",
     lastName: "",
-    email: "",
+    email: null as string | null,
     phoneNumber: "",
     birthdate: null as string | null,
     notes: "",
@@ -129,11 +128,14 @@ export function PatientEditForm({
 
   async function handlePatientSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (saving) return;
     setError("");
 
-    const isEmailValid = EMAIL_REGEX.test(patientForm.email);
+    const isEmailValid =
+      !patientForm.email ||
+      patientForm.email.trim() === "" ||
+      EMAIL_REGEX.test(patientForm.email);
     const isFormValid =
-      patientForm.email.trim() !== "" &&
       isEmailValid &&
       isPhoneValid &&
       patientForm.firstName.trim() !== "" &&
@@ -162,6 +164,7 @@ export function PatientEditForm({
         : undefined,
     };
 
+    const isNew = !editingPatientId;
     setSaving(true);
     try {
       if (editingPatientId) {
@@ -177,10 +180,12 @@ export function PatientEditForm({
         });
       }
 
-      setShowSuccessToast(true);
-      setTimeout(() => {
-        onSaveSuccess();
-      }, 1500);
+      toast.success(
+        isNew
+          ? "Paciente registrado satisfactoriamente"
+          : "Paciente actualizado satisfactoriamente",
+      );
+      onSaveSuccess();
     } catch (requestError) {
       setError(
         requestError instanceof Error
@@ -216,9 +221,9 @@ export function PatientEditForm({
         setPatientForm({
           firstName: fullPatient.firstName,
           lastName: fullPatient.lastName,
-          email: fullPatient.email ?? "",
+          email: fullPatient.email ?? null,
           phoneNumber: fullPatient.phoneNumber ?? "",
-          birthdate: fullPatient.birthdate ?? "",
+          birthdate: fullPatient.birthdate ?? null,
           notes: fullPatient.notes ?? "",
           specialistId: fullPatient.specialist?.id ?? "",
           documentType: fullPatient.documentType ?? null,
@@ -250,6 +255,7 @@ export function PatientEditForm({
         ...prev,
         status: fullPatient.status ?? "",
       }));
+      toast.success("Estado del paciente actualizado satisfactoriamente");
     } catch (requestError) {
       setError(
         requestError instanceof Error
@@ -388,9 +394,8 @@ export function PatientEditForm({
                       label="Correo electrónico"
                       type="email"
                       maxLength={100}
-                      required
                       placeholder="ana@correo.com"
-                      value={patientForm.email}
+                      value={patientForm.email || ""}
                       onChange={(event) =>
                         setPatientForm((current) => ({
                           ...current,
@@ -398,12 +403,12 @@ export function PatientEditForm({
                         }))
                       }
                       error={
-                        showValidationErrors && !patientForm.email
-                          ? "El email es obligatorio"
-                          : showValidationErrors &&
-                              !EMAIL_REGEX.test(patientForm.email)
-                            ? "Ingresa un correo electrónico válido"
-                            : undefined
+                        showValidationErrors &&
+                        (!patientForm.email ||
+                          patientForm.email.trim() == "" ||
+                          !EMAIL_REGEX.test(patientForm.email))
+                          ? "Ingresa un correo electrónico válido"
+                          : undefined
                       }
                     />
                   </Grid.Col>
@@ -708,11 +713,15 @@ export function PatientEditForm({
 
                 {/* Botones de acción */}
                 <Group justify="flex-end" mt="lg">
-                  <Button variant="default" onClick={onCancel}>
+                  <Button
+                    variant="default"
+                    onClick={onCancel}
+                    disabled={saving}
+                  >
                     Cancelar
                   </Button>
                   <Button type="submit" loading={saving}>
-                    {saving ? "Guardando..." : "Guardar paciente"}
+                    Guardar paciente
                   </Button>
                 </Group>
               </Stack>
@@ -739,20 +748,6 @@ export function PatientEditForm({
         </Tabs>
       </Paper>
 
-      {/* Toast de éxito */}
-      <Snackbar
-        open={showSuccessToast}
-        autoHideDuration={5000}
-        onClose={() => setShowSuccessToast(false)}
-      >
-        <MUIAlert
-          severity="success"
-          variant="filled"
-          onClose={() => setShowSuccessToast(false)}
-        >
-          Paciente registrado satisfactoriamente
-        </MUIAlert>
-      </Snackbar>
       <ChangeStatusModal
         open={isChangeStatusModalOpen}
         patient={activePatientForStatus}

@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useAuth } from "../hooks/useAuth";
-import type { LoginCredentials } from "../types/auth";
+import type { LoginCredentials, TenantChoice } from "../types/auth";
 import { ForgotPasswordPage } from "./ForgotPasswordPage";
+import { RegistrationPage } from "./RegistrationPage";
 import { HttpError } from "../data/http/httpClient";
 import "./LoginPage.css";
 
@@ -14,6 +15,9 @@ export function LoginPage() {
   });
   const [error, setError] = useState("");
   const [recovering, setRecovering] = useState(false);
+  const [registering, setRegistering] = useState(false);
+  const [tenants, setTenants] = useState<TenantChoice[]>([]);
+  const [tenantId, setTenantId] = useState("");
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -35,7 +39,11 @@ export function LoginPage() {
 
     setLoading(true);
     try {
-      await login(credentials);
+      const response = await login({ ...credentials, tenantId: tenantId ? Number(tenantId) : undefined });
+      if ("tenants" in response && Array.isArray(response.tenants)) {
+        setTenants(response.tenants);
+        setTenantId("");
+      }
     } catch (err) {
       setError(
         err instanceof HttpError && (err.status === 401 || err.status === 403)
@@ -50,6 +58,7 @@ export function LoginPage() {
   if (recovering) {
     return <ForgotPasswordPage onBack={() => setRecovering(false)} />;
   }
+  if (registering) return <RegistrationPage onBack={() => setRegistering(false)} />;
 
   return (
     <div className="login-container">
@@ -67,6 +76,7 @@ export function LoginPage() {
               placeholder="tu@email.com"
               disabled={loading}
               required
+              readOnly={tenants.length > 0}
             />
           </div>
 
@@ -86,10 +96,26 @@ export function LoginPage() {
 
           {error && <div className="error-message" role="alert">{error}</div>}
 
-          <button type="submit" disabled={loading} className="login-button">
+          {tenants.length > 0 && <div className="form-group">
+            <label htmlFor="tenant">Clínica</label>
+            <select id="tenant" required value={tenantId} disabled={loading}
+              onChange={(event) => setTenantId(event.currentTarget.value)}>
+              <option value="">Selecciona la clínica a la que deseas ingresar</option>
+              {tenants.map((tenant) => <option key={tenant.tenantId} value={tenant.tenantId}>
+                {tenant.tenantName}
+              </option>)}
+            </select>
+            <button type="button" className="link-button" disabled={loading}
+              onClick={() => { setTenants([]); setTenantId(""); }}>Usar otra cuenta</button>
+          </div>}
+
+          <button type="submit" disabled={loading} aria-busy={loading} className="login-button">
             {loading ? "Iniciando sesión..." : "Iniciar Sesión"}
           </button>
           <div className="login-links">
+            <button type="button" className="link-button" onClick={() => setRegistering(true)}>
+              Registrar mi clínica
+            </button>
             <button
               type="button"
               className="link-button"

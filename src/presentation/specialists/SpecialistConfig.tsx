@@ -7,9 +7,10 @@ import {
   Divider,
   Paper,
   Button,
+  Alert,
 } from "@mantine/core";
-import { modals } from "@mantine/modals";
-import { useState } from "react";
+import { useConfirm, useToast } from "../../components/feedback/feedbackContext";
+import { useEffect, useState } from "react";
 import { specialistService } from "../../services/specialistService";
 
 export function SpecialistConfig({
@@ -24,6 +25,40 @@ export function SpecialistConfig({
   onSaveSuccess: () => void;
 }) {
   const [color, setColor] = useState("#4C6EF5");
+  const [loadingColor, setLoadingColor] = useState(true);
+  const [savingColor, setSavingColor] = useState(false);
+  const [error, setError] = useState("");
+  const toast = useToast();
+  const confirm = useConfirm();
+
+  useEffect(() => {
+    let cancelled = false;
+    specialistService.getById(editingSpecialistId)
+      .then((specialist) => {
+        if (!cancelled) setColor(specialist.agendaColor ?? "#4C6EF5");
+      })
+      .catch((err: Error) => {
+        if (!cancelled) setError(err.message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingColor(false);
+      });
+    return () => { cancelled = true; };
+  }, [editingSpecialistId]);
+
+  async function saveColor() {
+    if (savingColor) return;
+    setSavingColor(true);
+    setError("");
+    try {
+      await specialistService.updateAgendaColor(editingSpecialistId, color);
+      toast.success("Color de agenda guardado satisfactoriamente");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo guardar el color.");
+    } finally {
+      setSavingColor(false);
+    }
+  }
 
   // Paleta de colores pastel/profesionales sugeridos para la agenda
   const agendaColors = [
@@ -36,27 +71,19 @@ export function SpecialistConfig({
     "#15AABF", // Cyan
   ];
 
-  const handleOpenDeleteModal = () => {
-    modals.openConfirmModal({
-      title: (
-        <Title order={4}>¿Estás seguro de archivar a este especialista?</Title>
-      ),
-      children: (
-        <Text size="sm" c="dimmed">
-          Esta acción es permanente e irreversible. Se archivarán los accesos y
-          la relación con el sistema.
-        </Text>
-      ),
-      labels: { confirm: "Archivar especialista", cancel: "Cancelar" },
-      confirmProps: { color: "red", radius: "xl" },
-      cancelProps: { radius: "xl" },
-      onConfirm: () => {
-        specialistService.deactivate(editingSpecialistId).then(() => {
-          onSaveSuccess();
-        });
+  const handleOpenDeleteModal = async () => {
+    const confirmed = await confirm({
+      title: "¿Estás seguro de archivar a este especialista?",
+      message: "Esta acción es permanente e irreversible. Se archivarán los accesos y la relación con el sistema.",
+      confirmLabel: "Archivar especialista",
+      destructive: true,
+      onConfirm: async () => {
+        await specialistService.deactivate(editingSpecialistId);
+        toast.success("Especialista archivado satisfactoriamente");
+        onSaveSuccess();
       },
-      onCancel: onCancel,
     });
+    if (!confirmed) onCancel();
   };
 
   return (
@@ -82,6 +109,7 @@ export function SpecialistConfig({
           placeholder="Selecciona un color"
           value={color}
           onChange={setColor}
+          disabled={loadingColor || savingColor}
           swatches={agendaColors}
           swatchesPerRow={7}
           format="hex"
@@ -89,6 +117,15 @@ export function SpecialistConfig({
           w={{ base: "100%", sm: 320 }}
           mt="xs"
         />
+        {error && <Alert color="red">{error}</Alert>}
+        <Button
+          onClick={saveColor}
+          loading={savingColor}
+          disabled={loadingColor || !/^#[0-9a-f]{6}$/i.test(color)}
+          w={{ base: "100%", sm: 320 }}
+        >
+          Guardar color de agenda
+        </Button>
       </Stack>
 
       <Divider />
@@ -109,10 +146,10 @@ export function SpecialistConfig({
               color="red"
               radius="xl"
               mt="xs"
-              onClick={handleOpenDeleteModal}
-              loading={saving}
+              onClick={() => void handleOpenDeleteModal()}
+              disabled={saving}
             >
-              {saving ? "Guardando..." : "Archivar especialista"}
+              Archivar especialista
             </Button>
           </div>
         </Stack>

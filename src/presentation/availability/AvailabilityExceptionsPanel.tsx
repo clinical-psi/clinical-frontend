@@ -12,7 +12,7 @@ import {
   Title,
   Tooltip,
 } from "@mantine/core";
-import { modals } from "@mantine/modals";
+import { useConfirm, type ToastSeverity } from "../../components/feedback/feedbackContext";
 import {
   IconChevronLeft,
   IconChevronRight,
@@ -20,7 +20,7 @@ import {
   IconPlus,
   IconTrash,
 } from "@tabler/icons-react";
-import type { Location } from "../../data/http/locationsApi";
+import type { LocationHallOption } from "../../data/http/locationsApi";
 import type {
   AvailabilityException,
   AvailabilityExceptionRequest,
@@ -49,10 +49,11 @@ export function AvailabilityExceptionsPanel({
   onNotify,
 }: {
   specialistId: string;
-  locations: Location[];
+  locations: LocationHallOption[];
   onChanged: () => void;
-  onNotify: (message: string, severity: "success" | "error") => void;
+  onNotify: (message: string, severity: ToastSeverity) => void;
 }) {
+  const confirm = useConfirm();
   const [rangeStart, setRangeStart] = useState(startOfToday);
   const [exceptions, setExceptions] = useState<AvailabilityException[]>([]);
   const [loadedKey, setLoadedKey] = useState("");
@@ -116,7 +117,7 @@ export function AvailabilityExceptionsPanel({
     if (saved.type === "BLOCKED" && saved.overlappingAppointments > 0) {
       onNotify(
         `Bloqueo guardado. Hay ${saved.overlappingAppointments} cita(s) dentro de este periodo que debes reprogramar.`,
-        "error",
+        "warning",
       );
     } else {
       onNotify("Excepción guardada", "success");
@@ -124,9 +125,9 @@ export function AvailabilityExceptionsPanel({
   }
 
   function confirmDelete(exception: AvailabilityException) {
-    modals.openConfirmModal({
+    void confirm({
       title: "Eliminar excepción",
-      children: (
+      message: (
         <Text size="sm">
           Se eliminará la excepción del{" "}
           <strong>
@@ -139,17 +140,13 @@ export function AvailabilityExceptionsPanel({
           . El horario semanal volverá a aplicar en ese periodo.
         </Text>
       ),
-      labels: { confirm: "Eliminar", cancel: "Cancelar" },
-      confirmProps: { color: "red" },
-      onConfirm: () => {
-        availabilityService
-          .deleteException(specialistId, exception.id)
-          .then(() => {
-            setReloadKey((key) => key + 1);
-            onChanged();
-            onNotify("Excepción eliminada", "success");
-          })
-          .catch((err: Error) => onNotify(err.message, "error"));
+      confirmLabel: "Eliminar",
+      destructive: true,
+      onConfirm: async () => {
+        await availabilityService.deleteException(specialistId, exception.id);
+        setReloadKey((key) => key + 1);
+        onChanged();
+        onNotify("Excepción eliminada", "success");
       },
     });
   }
@@ -241,8 +238,8 @@ export function AvailabilityExceptionsPanel({
                     {!blocked && (
                       <Text size="xs" c="dimmed">
                         {modeLabel(exception.appointmentMode)}
-                        {exception.locationId &&
-                          ` · ${locations.find((l) => l.id === exception.locationId)?.name ?? "Sede"}`}
+                        {exception.locationHallId &&
+                          ` · ${locations.find((l) => l.id === exception.locationHallId)?.name ?? "Sede"}`}
                         {exception.slotMinutes &&
                           ` · citas de ${exception.slotMinutes} min`}
                       </Text>

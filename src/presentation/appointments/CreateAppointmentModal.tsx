@@ -7,9 +7,9 @@ import {
   Text,
   Switch,
   Group,
-  Button,
   TextInput,
 } from "@mantine/core";
+import { ModalActions } from "../../components/feedback/ModalActions";
 import { useEffect, useState } from "react";
 import { patientService } from "../../services/patientService";
 import { useRoles } from "../../hooks/useRoles";
@@ -17,7 +17,7 @@ import type { GetPatient } from "../../types/get-patient";
 import type { AppointmentMode } from "../../data/http/appointmentsApi";
 import { TagInput } from "./AppointmentsPage";
 import type { Specialist } from "../../data/http/specialistsApi";
-import type { Location } from "../../data/http/locationsApi";
+import { formatLocationLabel, type LocationHallOption } from "../../data/http/locationsApi";
 import type { FormEvent } from "react";
 import { AvailableSlotPicker } from "./AvailableSlotPicker";
 
@@ -29,15 +29,17 @@ export function CreateAppointmentModal({
   onFormDataChange,
   onClose,
   onSubmit,
+  editing = false,
+  saving = false,
 }: CreateAppointmentModalProps) {
   const specialistOptions = specialists.map((s) => ({
-    value: s.id,
+    value: String(s.id),
     label: `${s.firstName} ${s.lastName}`,
   }));
 
   const locationOptions = locations.map((l) => ({
     value: String(l.id),
-    label: l.name,
+    label: formatLocationLabel(l),
   }));
 
   const isPresencial = formData.appointmentMode === "INPERSON";
@@ -63,7 +65,7 @@ export function CreateAppointmentModal({
   }, [roleNames, patientQuery, open]);
 
   const patientOptions = patientResults.map((p) => ({
-    value: p.id,
+    value: String(p.id),
     label: `${p.firstName} ${p.lastName}`,
   }));
   // Mantine necesita la opcion seleccionada en `data` para mostrar su etiqueta
@@ -78,9 +80,19 @@ export function CreateAppointmentModal({
   }
 
   return (
-    <Modal opened={open} onClose={onClose} title="Agendar Nueva Cita" size="lg">
+    <Modal
+      opened={open}
+      onClose={onClose}
+      title={editing ? "Editar Cita" : "Agendar Nueva Cita"}
+      size="lg"
+      closeOnClickOutside={!saving}
+      closeOnEscape={!saving}
+      withCloseButton={!saving}
+    >
       <form onSubmit={onSubmit}>
+        <fieldset disabled={saving} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
         <Stack gap="md">
+          {editing && <Text size="sm" c="dimmed">Si cambias el horario o el especialista de una cita confirmada, volverá a Agendada y requerirá una nueva confirmación.</Text>}
           {/* Patient */}
           <MantineSelect
             label="Paciente"
@@ -104,6 +116,7 @@ export function CreateAppointmentModal({
             }
             required
             searchable
+            disabled={editing}
           />
 
           {/* Specialist */}
@@ -170,7 +183,7 @@ export function CreateAppointmentModal({
               specialistId={formData.specialistId}
               date={formData.appointmentStartDate}
               appointmentMode={formData.appointmentMode}
-              locationId={formData.locationId}
+              locationHallId={formData.locationHallId}
               selectedStart={formData.appointmentStartDate}
               onPick={(start, end) =>
                 onFormDataChange({
@@ -185,12 +198,12 @@ export function CreateAppointmentModal({
           {/* Location (conditional) */}
           {isPresencial && (
             <MantineSelect
-              label="Ubicación *"
-              placeholder="Selecciona ubicación"
+              label="Sede y sala"
+              placeholder="Selecciona sede y sala"
               data={locationOptions}
-              value={formData.locationId}
+              value={formData.locationHallId}
               onChange={(value) =>
-                onFormDataChange({ ...formData, locationId: value || "" })
+                onFormDataChange({ ...formData, locationHallId: value || "" })
               }
               required
               searchable
@@ -206,7 +219,7 @@ export function CreateAppointmentModal({
               onChange={(value) => {
                 const numValue =
                   typeof value === "string" ? parseFloat(value) : value;
-                onFormDataChange({ ...formData, feeAmount: numValue || 120 });
+                onFormDataChange({ ...formData, feeAmount: Number.isFinite(numValue) ? numValue : 0 });
               }}
               min={0}
               step={0.01}
@@ -226,7 +239,7 @@ export function CreateAppointmentModal({
               onChange={(value) =>
                 onFormDataChange({
                   ...formData,
-                  currencyCode: (value as "PEN" | "USD" | "EUR") || "PEN",
+                  currencyCode: value || "PEN",
                 })
               }
               required
@@ -269,13 +282,13 @@ export function CreateAppointmentModal({
           </div>
 
           {/* Actions */}
-          <Group justify="flex-end" gap="sm">
-            <Button variant="default" onClick={onClose}>
-              Cancelar
-            </Button>
-            <Button type="submit">Agendar Cita</Button>
-          </Group>
+          <ModalActions
+            onCancel={onClose}
+            submitLabel={editing ? "Guardar cambios" : "Agendar Cita"}
+            loading={saving}
+          />
         </Stack>
+        </fieldset>
       </form>
     </Modal>
   );
@@ -283,14 +296,16 @@ export function CreateAppointmentModal({
 
 export interface CreateAppointmentModalProps {
   open: boolean;
+  editing?: boolean;
+  saving?: boolean;
   specialists: Specialist[];
-  locations: Location[];
+  locations: LocationHallOption[];
   formData: {
     feeAmount: number;
-    currencyCode: "PEN" | "USD" | "EUR";
+    currencyCode: string;
     appointmentMode: AppointmentMode;
     specialistId: string;
-    locationId: string;
+    locationHallId: string;
     patientId: string;
     patientLabel: string;
     appointmentStartDate: string;
