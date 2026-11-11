@@ -8,7 +8,14 @@ import type {
   DatesSetArg,
   EventInput,
 } from "@fullcalendar/core";
-import { Alert, Group, Loader, LoadingOverlay, Stack, Text } from "@mantine/core";
+import {
+  Alert,
+  Group,
+  Loader,
+  LoadingOverlay,
+  Stack,
+  Text,
+} from "@mantine/core";
 import { availabilityService } from "../../services/availabilityService";
 import { specialistService } from "../../services/specialistService";
 import { calculateDateRange, toISOStringWithTimezone } from "../../util/utils";
@@ -97,7 +104,10 @@ export function SpecialistAvailabilityCalendar({
         </Alert>
       )}
       <div className="availability-calendar" style={{ position: "relative" }}>
-        <LoadingOverlay visible={loading} loaderProps={{ children: <Loader /> }} />
+        <LoadingOverlay
+          visible={loading}
+          loaderProps={{ children: <Loader /> }}
+        />
         <FullCalendar
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
           initialView="timeGridWeek"
