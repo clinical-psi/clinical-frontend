@@ -30,7 +30,7 @@ export type CreatePatientRequest = {
   specialistId?: string | null;
   firstName: string;
   lastName: string;
-  email?: string;
+  email: string | null;
   birthdate?: string | null;
   notes?: string;
   phoneNumber?: string;

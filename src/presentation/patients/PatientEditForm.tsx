@@ -57,7 +57,7 @@ export function PatientEditForm({
   const [patientForm, setPatientForm] = useState({
     firstName: "",
     lastName: "",
-    email: "",
+    email: null as string | null,
     phoneNumber: "",
     birthdate: null as string | null,
     notes: "",
@@ -131,9 +131,11 @@ export function PatientEditForm({
     if (saving) return;
     setError("");
 
-    const isEmailValid = EMAIL_REGEX.test(patientForm.email);
+    const isEmailValid =
+      !patientForm.email ||
+      patientForm.email.trim() === "" ||
+      EMAIL_REGEX.test(patientForm.email);
     const isFormValid =
-      patientForm.email.trim() !== "" &&
       isEmailValid &&
       isPhoneValid &&
       patientForm.firstName.trim() !== "" &&
@@ -178,9 +180,11 @@ export function PatientEditForm({
         });
       }
 
-      toast.success(isNew
-        ? "Paciente registrado satisfactoriamente"
-        : "Paciente actualizado satisfactoriamente");
+      toast.success(
+        isNew
+          ? "Paciente registrado satisfactoriamente"
+          : "Paciente actualizado satisfactoriamente",
+      );
       onSaveSuccess();
     } catch (requestError) {
       setError(
@@ -217,9 +221,9 @@ export function PatientEditForm({
         setPatientForm({
           firstName: fullPatient.firstName,
           lastName: fullPatient.lastName,
-          email: fullPatient.email ?? "",
+          email: fullPatient.email ?? null,
           phoneNumber: fullPatient.phoneNumber ?? "",
-          birthdate: fullPatient.birthdate ?? "",
+          birthdate: fullPatient.birthdate ?? null,
           notes: fullPatient.notes ?? "",
           specialistId: fullPatient.specialist?.id ?? "",
           documentType: fullPatient.documentType ?? null,
@@ -390,9 +394,8 @@ export function PatientEditForm({
                       label="Correo electrónico"
                       type="email"
                       maxLength={100}
-                      required
                       placeholder="ana@correo.com"
-                      value={patientForm.email}
+                      value={patientForm.email || ""}
                       onChange={(event) =>
                         setPatientForm((current) => ({
                           ...current,
@@ -400,12 +403,12 @@ export function PatientEditForm({
                         }))
                       }
                       error={
-                        showValidationErrors && !patientForm.email
-                          ? "El email es obligatorio"
-                          : showValidationErrors &&
-                              !EMAIL_REGEX.test(patientForm.email)
-                            ? "Ingresa un correo electrónico válido"
-                            : undefined
+                        showValidationErrors &&
+                        (!patientForm.email ||
+                          patientForm.email.trim() == "" ||
+                          !EMAIL_REGEX.test(patientForm.email))
+                          ? "Ingresa un correo electrónico válido"
+                          : undefined
                       }
                     />
                   </Grid.Col>
@@ -710,7 +713,11 @@ export function PatientEditForm({
 
                 {/* Botones de acción */}
                 <Group justify="flex-end" mt="lg">
-                  <Button variant="default" onClick={onCancel} disabled={saving}>
+                  <Button
+                    variant="default"
+                    onClick={onCancel}
+                    disabled={saving}
+                  >
                     Cancelar
                   </Button>
                   <Button type="submit" loading={saving}>
