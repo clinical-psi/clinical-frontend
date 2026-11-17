@@ -11,6 +11,12 @@ export const specialistService = {
   activateSelf: specialistsApi.activateSelf,
   getAccess: specialistsApi.getAccess,
   changeAccess: specialistsApi.changeAccess,
+  getGoogleCalendar: specialistsApi.getGoogleCalendar,
+  startGoogleCalendarAuthorization: specialistsApi.startGoogleCalendarAuthorization,
+  syncGoogleCalendar: specialistsApi.syncGoogleCalendar,
+  async disconnectGoogleCalendar(specialistId: string): Promise<void> {
+    await specialistsApi.disconnectGoogleCalendar(specialistId);
+  },
   async updateAgendaColor(specialistId: string, agendaColor: string): Promise<Specialist> {
     return specialistsApi.updateAgendaColor(specialistId, agendaColor);
   },

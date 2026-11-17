@@ -13,6 +13,15 @@ export type SpecialistAccess = {
   status: SpecialistAccessStatus; email: string | null; expiresAt: string | null; userId: number | null;
 };
 export type SelfSpecialist = { id: number | null; status: SpecialistAccessStatus | "INACTIVE" };
+export type GoogleCalendarConnection = {
+  available: boolean;
+  status: "DISCONNECTED" | "CONNECTED" | "NEEDS_RECONNECT";
+  googleEmail: string | null;
+  calendarName: string | null;
+  connectedAt: string | null;
+  lastSyncedAt: string | null;
+  lastSyncError: string | null;
+};
 export type SpecialistAccessAction = "invite" | "resend" | "cancel" | "revoke" | "restore";
 
 export const specialistsApi = {
@@ -21,6 +30,12 @@ export const specialistsApi = {
   getAccess: (id: string) => get<SpecialistAccess>(`/specialists/${id}/access`),
   changeAccess: (id: string, action: SpecialistAccessAction, email?: string) =>
     post<SpecialistAccess>(`/specialists/${id}/access/${action}`, email ? { email } : {}),
+  getGoogleCalendar: (id: string) =>
+    get<GoogleCalendarConnection>(`/specialists/${id}/google-calendar`),
+  startGoogleCalendarAuthorization: (id: string) =>
+    post<{ authorizationUrl: string }>(`/specialists/${id}/google-calendar/authorization`, {}),
+  syncGoogleCalendar: (id: string) => post<void>(`/specialists/${id}/google-calendar/sync`, {}),
+  disconnectGoogleCalendar: (id: string) => del(`/specialists/${id}/google-calendar`),
   getById: async (specialistId: string) => {
     return get<Specialist>(`/specialists/${specialistId}`);
   },

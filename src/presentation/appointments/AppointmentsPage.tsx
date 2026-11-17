@@ -14,6 +14,7 @@ import type {
   DatesSetArg,
   EventClickArg,
   EventInput,
+  EventApi,
 } from "@fullcalendar/core";
 import {
   Container,
@@ -200,6 +201,94 @@ const EMPTY_CREATE_FORM = {
   paidIndicator: false,
 };
 
+type OverlapColumn = { column: number; columns: number };
+type CalendarLane = { left: number; right: number };
+
+const toEventTime = (value: EventInput["start"]) =>
+  new Date(value as string | number | Date).getTime();
+
+const getEventSpecialistId = (event: EventInput) =>
+  String(event.extendedProps?.specialistId ?? "");
+
+// Asignacion greedy de columnas para eventos que se cruzan (como FullCalendar).
+function assignOverlapColumns(items: EventInput[]) {
+  const layout = new Map<EventInput, OverlapColumn>();
+  const sorted = [...items].sort(
+    (a, b) =>
+      toEventTime(a.start) - toEventTime(b.start) ||
+      toEventTime(b.end) - toEventTime(a.end),
+  );
+  let cluster: EventInput[] = [];
+  let columnEnds: number[] = [];
+  let clusterEnd = -Infinity;
+  const closeCluster = () => {
+    cluster.forEach((item) =>
+      layout.set(item, {
+        column: layout.get(item)?.column ?? 0,
+        columns: columnEnds.length,
+      }),
+    );
+    cluster = [];
+    columnEnds = [];
+    clusterEnd = -Infinity;
+  };
+  sorted.forEach((item) => {
+    const start = toEventTime(item.start);
+    const end = toEventTime(item.end);
+    if (start >= clusterEnd) closeCluster();
+    let column = columnEnds.findIndex((columnEnd) => columnEnd <= start);
+    if (column === -1) column = columnEnds.length;
+    columnEnds[column] = end;
+    layout.set(item, { column, columns: 1 });
+    cluster.push(item);
+    clusterEnd = Math.max(clusterEnd, end);
+  });
+  closeCluster();
+  return layout;
+}
+
+function withCalendarLane(
+  event: EventInput,
+  lane: number,
+  lanes: number,
+  { column, columns }: OverlapColumn = { column: 0, columns: 1 },
+): EventInput {
+  if (lane < 0 || lanes === 0) return event;
+  const start = (lane + column / columns) / lanes;
+  const end = (lane + (column + 1) / columns) / lanes;
+  const calendarLane: CalendarLane = {
+    left: start * 100,
+    right: (1 - end) * 100,
+  };
+  return {
+    ...event,
+    extendedProps: { ...event.extendedProps, calendarLane },
+  };
+}
+
+const toDayKey = (value: EventInput["start"]) => {
+  const date = new Date(toEventTime(value));
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+};
+
+// FullCalendar reutiliza los harness entre renders, por eso el carril se sincroniza
+// en cada render del contenido (eventDidMount solo corre al montar).
+function syncCalendarLane(content: HTMLElement | null, event: EventApi) {
+  const harness = content?.closest<HTMLElement>(
+    ".fc-timegrid-event-harness, .fc-timegrid-bg-harness",
+  );
+  if (!harness) return;
+  const lane = event.extendedProps.calendarLane as CalendarLane | undefined;
+  if (!lane) {
+    delete harness.dataset.calendarLane;
+    return;
+  }
+  harness.style.setProperty("--calendar-lane-left", `${lane.left}%`);
+  harness.style.setProperty("--calendar-lane-right", `${lane.right}%`);
+  harness.style.setProperty("--calendar-lane-color", event.borderColor);
+  harness.dataset.calendarLane = "true";
+}
+
 function AppointmentsCalendar() {
   const theme = useMantineTheme();
   const [specialists, setSpecialists] = useState<Specialist[]>([]);
@@ -295,6 +384,7 @@ function AppointmentsCalendar() {
           ],
           extendedProps: {
             fullAppointment: apt,
+            specialistId: apt.specialist?.id,
           },
         };
       }),
@@ -412,11 +502,11 @@ function AppointmentsCalendar() {
           ...event,
           id: `availability-${event.id}`,
           title: `${name} · ${blocked ? "Bloqueado" : "Disponible"}`,
-          display: "block",
+          display: "background",
           editable: false,
-          backgroundColor: `color-mix(in srgb, ${color} 8%, transparent)`,
+          backgroundColor: `color-mix(in srgb, ${color} 12%, transparent)`,
           borderColor: color,
-          textColor: "var(--ink)",
+          textColor: "var(--mantine-color-dimmed)",
           classNames: [
             "fc-specialist-availability",
             ...(blocked ? ["fc-specialist-availability-blocked"] : []),
@@ -430,18 +520,62 @@ function AppointmentsCalendar() {
     [availabilityEvents, specialists],
   );
 
-  const combinedEvents = useMemo(
-    () =>
+  // Cada especialista ocupa un carril; sus citas se dividen en subcolumnas dentro de el.
+  const combinedEvents = useMemo<EventInput[]>(() => {
+    const availability =
       canViewAvailability && showAvailability
-        ? [...specialistAvailabilityEvents, ...events]
-        : events,
-    [
-      specialistAvailabilityEvents,
-      events,
-      canViewAvailability,
-      showAvailability,
-    ],
-  );
+        ? specialistAvailabilityEvents
+        : [];
+    const visibleIds = visibleSpecialists.map((specialist) =>
+      String(specialist.id),
+    );
+    // Los carriles se calculan por dia: solo ocupan espacio quienes tienen eventos ese dia.
+    const specialistsByDay = new Map<string, Set<string>>();
+    [...availability, ...events].forEach((event) => {
+      const day = toDayKey(event.start);
+      const ids = specialistsByDay.get(day) ?? new Set<string>();
+      ids.add(getEventSpecialistId(event));
+      specialistsByDay.set(day, ids);
+    });
+    const lanesByDay = new Map<string, string[]>();
+    specialistsByDay.forEach((ids, day) =>
+      lanesByDay.set(day, [
+        ...visibleIds.filter((id) => ids.has(id)),
+        ...[...ids].filter((id) => !visibleIds.includes(id)),
+      ]),
+    );
+
+    const appointmentColumns = new Map<EventInput, OverlapColumn>();
+    lanesByDay.forEach((laneIds, day) =>
+      laneIds.forEach((id) =>
+        assignOverlapColumns(
+          events.filter(
+            (event) =>
+              getEventSpecialistId(event) === id &&
+              toDayKey(event.start) === day,
+          ),
+        ).forEach((column, event) => appointmentColumns.set(event, column)),
+      ),
+    );
+
+    const placeInLane = (event: EventInput) => {
+      const laneIds = lanesByDay.get(toDayKey(event.start)) ?? [];
+      return withCalendarLane(
+        event,
+        laneIds.indexOf(getEventSpecialistId(event)),
+        laneIds.length,
+        appointmentColumns.get(event),
+      );
+    };
+
+    return [...availability.map(placeInLane), ...events.map(placeInLane)];
+  }, [
+    specialistAvailabilityEvents,
+    events,
+    visibleSpecialists,
+    canViewAvailability,
+    showAvailability,
+  ]);
 
   function handleSelectRange(selection: DateSelectArg) {
     setEditingAppointmentId(null);
@@ -768,7 +902,6 @@ function AppointmentsCalendar() {
               slotMaxTime="24:00:00"
               height="auto"
               events={combinedEvents}
-              slotEventOverlap={!(canViewAvailability && showAvailability)}
               selectMirror={true}
               selectable={true}
               select={handleSelectRange}
@@ -783,7 +916,10 @@ function AppointmentsCalendar() {
               eventContent={(info) => {
                 if (info.event.extendedProps.specialistAvailability) {
                   return (
-                    <div className="specialist-availability-content">
+                    <div
+                      className="specialist-availability-content"
+                      ref={(element) => syncCalendarLane(element, info.event)}
+                    >
                       <span>{info.event.title}</span>
                       <span className="specialist-availability-time">
                         {info.timeText}
@@ -803,6 +939,7 @@ function AppointmentsCalendar() {
                 return (
                   <div
                     className="appointment-content"
+                    ref={(element) => syncCalendarLane(element, info.event)}
                     title={`${info.timeText} · ${info.event.title} · ${online ? "Virtual" : "Presencial"} · ${status.label}`}
                   >
                     <span className="appointment-time">{info.timeText}</span>
