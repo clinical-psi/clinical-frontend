@@ -12,6 +12,7 @@ import {
 import { useConfirm, useToast } from "../../components/feedback/feedbackContext";
 import { useEffect, useState } from "react";
 import { specialistService } from "../../services/specialistService";
+import { GoogleCalendarSection } from "./GoogleCalendarSection";
 
 export function SpecialistConfig({
   editingSpecialistId,
@@ -127,6 +128,8 @@ export function SpecialistConfig({
           Guardar color de agenda
         </Button>
       </Stack>
+
+      <GoogleCalendarSection specialistId={editingSpecialistId} />
 
       <Divider />
 

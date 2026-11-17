@@ -594,6 +594,7 @@ textarea {
 }
 .fc .fc-event.fc-saved-appointment {
   overflow: hidden;
+  border-radius: 6px;
 }
 .fc .fc-saved-appointment.appointment-status-scheduled {
   border-style: dashed;
@@ -602,7 +603,13 @@ textarea {
   opacity: 0.65;
 }
 .fc .fc-saved-appointment.appointment-status-no_show {
-  background-image: repeating-linear-gradient(135deg, transparent, transparent 6px, rgba(0, 0, 0, 0.16) 6px, rgba(0, 0, 0, 0.16) 9px);
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent,
+    transparent 6px,
+    rgba(0, 0, 0, 0.16) 6px,
+    rgba(0, 0, 0, 0.16) 9px
+  );
 }
 .fc .fc-saved-appointment.appointment-status-cancelled {
   opacity: 0.45;
@@ -651,7 +658,8 @@ textarea {
 .availability-swatch-appointment {
   background: var(--accent);
 }
-.fc .fc-event.fc-specialist-availability,
+
+.fc .fc-specialist-availability,
 .fc .fc-specialist-availability .fc-event-main {
   font-family: inherit;
   font-size: 0.7rem;
@@ -659,16 +667,30 @@ textarea {
   font-style: normal;
   line-height: 1.25;
 }
-.fc .fc-event.fc-specialist-availability {
+.fc .fc-bg-event.fc-specialist-availability {
   cursor: default;
-  border-left-width: 4px;
+  opacity: 1;
+  color: var(--mantine-color-dimmed);
+  border-left: 3px solid var(--calendar-lane-color, var(--line));
+  border-radius: 8px;
   overflow: hidden;
+  padding: 2px 4px;
 }
-/* Estos bloques informativos no deben impedir seleccionar horarios ni abrir citas. */
-.fc .fc-event-harness:has(.fc-specialist-availability) {
-  pointer-events: none;
+/* Pequeno margen para que los bloques redondeados de carriles vecinos no se toquen. */
+.fc .fc-timegrid-bg-harness .fc-bg-event.fc-specialist-availability {
+  inset: 1px 2px;
 }
-.fc .fc-event.fc-specialist-availability-blocked {
+/* Carriles por especialista en vistas de semana y dia. */
+.fc .fc-timegrid-bg-harness[data-calendar-lane="true"],
+.fc .fc-timegrid-event-harness[data-calendar-lane="true"] {
+  left: var(--calendar-lane-left) !important;
+  right: var(--calendar-lane-right) !important;
+}
+.fc .fc-timegrid-event-harness[data-calendar-lane="true"] {
+  margin-right: 0 !important;
+  padding: 0 2px;
+}
+.fc .fc-bg-event.fc-specialist-availability-blocked {
   background-image: repeating-linear-gradient(
     135deg,
     transparent,
@@ -680,6 +702,9 @@ textarea {
 .specialist-availability-content {
   overflow: hidden;
   overflow-wrap: anywhere;
+}
+.fc .fc-daygrid-bg-harness .specialist-availability-content {
+  display: none;
 }
 .specialist-availability-content > span {
   display: block;

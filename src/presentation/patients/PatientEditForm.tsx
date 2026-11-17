@@ -209,33 +209,36 @@ export function PatientEditForm({
   }
 
   useEffect(() => {
-    if (!editingPatientId) return;
-
     (async () => {
       try {
-        const fullPatient = await patientService.getById(editingPatientId);
-        const emergencyContacts =
-          await emergencyContactService.get(editingPatientId);
         if (canAssignSpecialist) {
           setSpecialists(await specialistService.getAll());
         }
-        setPatientForm({
-          firstName: fullPatient.firstName,
-          lastName: fullPatient.lastName,
-          email: fullPatient.email ?? null,
-          phoneNumber: fullPatient.phoneNumber ?? "",
-          birthdate: fullPatient.birthdate ?? null,
-          notes: fullPatient.notes ?? "",
-          specialistId: fullPatient.specialist?.id ?? "",
-          documentType: fullPatient.documentType ?? null,
-          documentNumber: fullPatient.documentNumber ?? "",
-          preferredName: fullPatient.preferredName ?? "",
-          addressLine: fullPatient.addressLine ?? "",
-          preferredLanguage: fullPatient.preferredLanguage ?? "",
-          genderIdentity: fullPatient.genderIdentity ?? null,
-          status: fullPatient.status ?? "",
-        });
-        setEmergencyContacts(emergencyContacts ?? []);
+        if (!editingPatientId) {
+          return;
+        } else {
+          const fullPatient = await patientService.getById(editingPatientId);
+          const emergencyContacts =
+            await emergencyContactService.get(editingPatientId);
+
+          setPatientForm({
+            firstName: fullPatient.firstName,
+            lastName: fullPatient.lastName,
+            email: fullPatient.email ?? null,
+            phoneNumber: fullPatient.phoneNumber ?? "",
+            birthdate: fullPatient.birthdate ?? null,
+            notes: fullPatient.notes ?? "",
+            specialistId: fullPatient.specialist?.id ?? "",
+            documentType: fullPatient.documentType ?? null,
+            documentNumber: fullPatient.documentNumber ?? "",
+            preferredName: fullPatient.preferredName ?? "",
+            addressLine: fullPatient.addressLine ?? "",
+            preferredLanguage: fullPatient.preferredLanguage ?? "",
+            genderIdentity: fullPatient.genderIdentity ?? null,
+            status: fullPatient.status ?? "",
+          });
+          setEmergencyContacts(emergencyContacts ?? []);
+        }
       } catch (requestError) {
         setError(
           requestError instanceof Error

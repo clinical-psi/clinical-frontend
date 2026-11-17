@@ -1,7 +1,10 @@
 import { useState, type FormEvent } from "react";
 import { Alert, Button, Paper, PasswordInput, Stack } from "@mantine/core";
 import { authService } from "../../services/authService";
-import { errorMessage, useToast } from "../../components/feedback/feedbackContext";
+import {
+  errorMessage,
+  useToast,
+} from "../../components/feedback/feedbackContext";
 
 export function ChangePasswordForm() {
   const [currentPassword, setCurrentPassword] = useState("");
